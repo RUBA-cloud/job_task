@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:job_task/core/get_it/configure_dependency.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+
+  Future<void> main() async {
+    WidgetsFlutterBinding.ensureInitialized();
+     configureDependencies();
+    runApp(const MyApp());
+  }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
