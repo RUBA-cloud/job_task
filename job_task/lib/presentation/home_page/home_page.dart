@@ -3,8 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/core/utility/utility.dart';
+import 'package:job_task/presentation/cart/cart_page.dart';
 import 'package:job_task/presentation/home_page/product_details.dart';
-import 'package:job_task/presentation/home_page/widgets/product_card.dart';
+import 'package:job_task/presentation/widget/product_card.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
 import 'package:job_task/services/home_page/home_state.dart';
 
@@ -16,7 +17,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with Utility {
-  // Controller stays in the widget — it's a UI object, not app state.
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -31,6 +31,8 @@ class _HomePageState extends State<HomePage> with Utility {
     super.dispose();
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     final homeCubit = HomeCubit.get(context);
@@ -40,26 +42,24 @@ class _HomePageState extends State<HomePage> with Utility {
       appBar: buildAppBar(
         context: context,
         actionWidget: BlocBuilder<HomeCubit, HomeState>(
-          buildWhen: (prev, curr) => curr is! GoToProductDetails,
+          // Rebuild the badges when the counts can change.
+          buildWhen: (prev, curr) =>
+          curr is GetHomeLoaded ||
+              curr is AddedProductSuccessToCart ||
+              curr is CartLoadedState,
           builder: (context, state) {
-            final count =
-            state is GetHomeLoaded ? state.favoriteIds.length : 0;
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 getButtonBadge(
-                  itemCount: count,
-                  onTap: () {
-                    // TODO: navigate to favorites page
-                  },
+                  itemCount: homeCubit.favoriteCount,
+                  onTap: () => homeCubit.gotToFavorites(),
                   icon: Icons.favorite,
                 ),
                 SizedBox(width: 5.w),
                 getButtonBadge(
-                  itemCount: 0, // TODO: hook to real cart count
-                  onTap: () {
-                    // TODO: navigate to cart page
-                  },
+                  itemCount: homeCubit.cartCount, // real cart count (0 by default)
+                  onTap: () => homeCubit.gotToCarts(),
                 ),
               ],
             );
@@ -67,18 +67,47 @@ class _HomePageState extends State<HomePage> with Utility {
         ),
       ),
       body: BlocListener<HomeCubit, HomeState>(
-        // Side effects (navigation) live in the listener, not the builder.
+        // Side effects: navigation + add-to-cart snackbars.
         listener: (context, state) {
           if (state is GoToProductDetails) {
-            navigateTo(context, BlocProvider.value(
-              value: HomeCubit(),
-              child: ProductDetailsPage(product: state.product),));
+            navigateTo(
+              context,
+              BlocProvider.value(
+                value: HomeCubit.get(context),
+                child: ProductDetailsPage(product: state.product),
+              ),
+            );
+          } else if (state is GoToCarts) {
+            navigateTo(
+              context,
+              BlocProvider.value(
+                value: HomeCubit.get(context),
+                child: const CartPage(),
+              ),
+            ).then((_) {
+              // Refresh the badge after returning from the cart.
+              if (mounted) {
+                HomeCubit.get(context).syncCart();
+              }
+            });
+          } else if (state is AddedProductSuccessToCart) {
+            showSnack(context, 'Added to cart', AppColors.ink);
+          } else if (state is ProductAlreadyInCart) {
+            showSnack(
+                context, '${state.productName} is already in your cart',
+                AppColors.accent);
+          } else if (state is FailedToAddedProductError) {
+            showSnack(context, state.error, AppColors.accent);
           }
         },
         child: BlocBuilder<HomeCubit, HomeState>(
-          // Never rebuild the page for the one-shot navigation state,
-          // otherwise the grid would flash blank during the push.
-          buildWhen: (prev, curr) => curr is! GoToProductDetails,
+          // Only rebuild the page for HOME states, so cart/add states don't
+          // blank the grid.
+          buildWhen: (prev, curr) =>
+          curr is GetHomeInitialState ||
+              curr is GetHomeLoadingState ||
+              curr is GetHomeLoaded ||
+              curr is GetHomeFailed,
           builder: (context, state) {
             return switch (state) {
               GetHomeLoadingState() || GetHomeInitialState() =>
@@ -143,7 +172,7 @@ class _HomePageState extends State<HomePage> with Utility {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: state.categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final category = state.categories[index];
                   final isSelected = category == state.selectedCategory;
@@ -154,8 +183,7 @@ class _HomePageState extends State<HomePage> with Utility {
                       padding: const EdgeInsets.symmetric(horizontal: 18),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color:
-                        isSelected ? AppColors.ink : AppColors.card,
+                        color: isSelected ? AppColors.ink : AppColors.card,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -200,12 +228,12 @@ class _HomePageState extends State<HomePage> with Utility {
                 delegate: SliverChildBuilderDelegate(
                       (context, index) {
                     final product = state.products[index];
-                    return ProductCard(onCartTap: (){},
-                      onTapped: () => homeCubit.goToProductDeatils(product),
+                    return ProductCard(
+                      onCartTap: () => homeCubit.addToCart(product),
+                      onTapped: () => homeCubit.goToProductDetails(product),
                       product: product,
                       isFavorite: state.favoriteIds.contains(product.id),
-                      onFavoriteTap: () =>
-                          homeCubit.toggleFavorite(product.id),
+                      onFavoriteTap: () => homeCubit.toggleFavorite(product.id),
                     );
                   },
                   childCount: state.products.length,

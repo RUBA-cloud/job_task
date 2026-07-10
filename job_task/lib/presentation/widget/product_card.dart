@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/data/model/response/product_entity.dart';
 import 'package:job_task/presentation/widget/app_image.dart';
+import 'package:job_task/services/home_page/home_cubit.dart';
+import 'package:job_task/services/home_page/home_state.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
   final bool isFavorite;
+  final bool isInCart; // initial seed; the BlocBuilder keeps it live afterwards
   final VoidCallback onFavoriteTap;
   final VoidCallback onTapped;
   final VoidCallback onCartTap;
@@ -18,6 +22,7 @@ class ProductCard extends StatelessWidget {
     required this.onFavoriteTap,
     required this.onTapped,
     required this.onCartTap,
+    this.isInCart = false,
   });
 
   @override
@@ -114,22 +119,35 @@ class ProductCard extends StatelessWidget {
                           color: AppColors.ink,
                         ),
                       ),
-                      // Add-to-cart button
-                      Material(
-                        color: AppColors.ink,
-                        borderRadius: BorderRadius.circular(10.r),
-                        child: InkWell(
-                          onTap: onCartTap,
-                          borderRadius: BorderRadius.circular(10.r),
-                          child: Padding(
-                            padding: EdgeInsets.all(6.w),
-                            child: Icon(
-                              Icons.add_shopping_cart_rounded,
-                              size: 16.sp,
-                              color: AppColors.card,
+                      // Add-to-cart button — rebuilds and turns red once the
+                      // product is in the cart.
+                      BlocBuilder<HomeCubit, HomeState>(
+                        buildWhen: (prev, curr) =>
+                        curr is GetHomeLoaded ||
+                            curr is AddedProductSuccessToCart ||
+                            curr is CartLoadedState,
+                        builder: (context, state) {
+                          final inCart = isInCart ||
+                              HomeCubit.get(context).isProductInCart(product.id);
+                          return Material(
+                            color: inCart ? AppColors.accent : AppColors.ink,
+                            borderRadius: BorderRadius.circular(10.r),
+                            child: InkWell(
+                              onTap: onCartTap,
+                              borderRadius: BorderRadius.circular(10.r),
+                              child: Padding(
+                                padding: EdgeInsets.all(6.w),
+                                child: Icon(
+                                  inCart
+                                      ? Icons.shopping_cart_rounded
+                                      : Icons.add_shopping_cart_rounded,
+                                  size: 16.sp,
+                                  color: AppColors.card,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ],
                   ),

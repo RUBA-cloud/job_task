@@ -30,6 +30,7 @@ dependencies:
   flutter_screenutil: ^5.9.3
   logger: ^2.7.0
   custom_cached_image: ^1.7.0
+  sqlite3: ^3.3.4
 
 dev_dependencies:
   flutter_test:

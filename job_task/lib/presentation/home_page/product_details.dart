@@ -8,11 +8,22 @@ import 'package:job_task/presentation/widget/app_image.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
 import 'package:job_task/services/home_page/home_state.dart';
 
-class ProductDetailsPage extends StatelessWidget with Utility {
+class ProductDetailsPage extends StatefulWidget  {
   final ProductEntity product;
 
   const ProductDetailsPage({super.key, required this.product});
 
+  @override
+  State<ProductDetailsPage> createState() => _ProductDetailsPageState();
+}
+
+class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
+  late HomeCubit cubit;
+  @override void initState() {
+    cubit =HomeCubit.get(context);
+    // TODO: implement initState
+    super.initState();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,13 +32,13 @@ class ProductDetailsPage extends StatelessWidget with Utility {
         context: context,
         showBackButton: true,
         title: 'Details',
-        subtitle: product.category,
+        subtitle: widget.product.category,
         actionWidget: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
             final isFavorite = state is GetHomeLoaded &&
-                state.favoriteIds.contains(product.id);
+                state.favoriteIds.contains(widget.product.id);
             return InkWell(
-              onTap: () => HomeCubit.get(context).toggleFavorite(product.id),
+              onTap: () => HomeCubit.get(context).toggleFavorite(widget.product.id),
               borderRadius: BorderRadius.circular(14.r),
               child: Container(
                 padding: EdgeInsets.all(10.w),
@@ -59,7 +70,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
           children: [
             // -------- Image --------
             Hero(
-              tag: 'product-${product.id}',
+              tag: 'product-${widget.product.id}',
               child: Container(
                 height: 300.h,
                 width: double.infinity,
@@ -75,7 +86,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                     ),
                   ],
                 ),
-                child: AppCachedImage(imageUrl: product.image),
+                child: AppCachedImage(imageUrl: widget.product.image),
               ),
             ),
             SizedBox(height: 20.h),
@@ -88,8 +99,8 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Text(
-                product.category[0].toUpperCase() +
-                    product.category.substring(1),
+                widget.product.category[0].toUpperCase() +
+                    widget.product.category.substring(1),
                 style: TextStyle(
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
@@ -101,7 +112,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
 
             // -------- Title --------
             Text(
-              product.title,
+              widget.product.title,
               style: TextStyle(
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w800,
@@ -117,7 +128,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                 Icon(Icons.star_rounded, size: 20.sp, color: AppColors.star),
                 SizedBox(width: 4.w),
                 Text(
-                  product.rating.rate.toStringAsFixed(1),
+                  widget.product.rating.rate.toStringAsFixed(1),
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w700,
@@ -126,7 +137,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                 ),
                 SizedBox(width: 6.w),
                 Text(
-                  '(${product.rating.count} reviews)',
+                  '(${widget.product.rating.count} reviews)',
                   style: TextStyle(
                     fontSize: 13.sp,
                     color: AppColors.textGreyLight,
@@ -147,7 +158,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
             ),
             SizedBox(height: 8.h),
             Text(
-              product.description,
+              widget.product.description,
               style: TextStyle(
                 fontSize: 13.5.sp,
                 height: 1.6, // line-height multiplier — never scale this
@@ -186,7 +197,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                   TextStyle(fontSize: 12.sp, color: AppColors.textGrey),
                 ),
                 Text(
-                  '\$${product.price.toStringAsFixed(2)}',
+                  '\$${widget.product.price.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w800,
@@ -206,11 +217,7 @@ class ProductDetailsPage extends StatelessWidget with Utility {
                     borderRadius: BorderRadius.circular(16.r),
                   ),
                 ),
-                onPressed: () {
-                  // TODO: add to cart logic
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Added to cart')),
-                  );
+                onPressed: () { cubit.addToCart(widget.product);
                 },
                 icon: Icon(Icons.shopping_bag_outlined, size: 20.sp),
                 label: Text(

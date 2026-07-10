@@ -8,5 +8,7 @@ import 'package:job_task/domain/repository/home_page_repo.dart';
  class GetProductUseCase {
   final HomePageRepo homePageRepo;
   GetProductUseCase(this.homePageRepo);
-   Future<ApiResult<List<ProductEntity>>>excute()=>homePageRepo.getProducts();
+   Future<ApiResult<List<ProductEntity>>>execute()=>homePageRepo.getProducts();
+
+
  }

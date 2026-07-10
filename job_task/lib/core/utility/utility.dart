@@ -87,7 +87,7 @@ mixin Utility {
           size: 20,
           color: AppColors.ink,
         ),
-        onPressed: onBack ?? () => navigateBack(context),
+        onPressed: onBack ?? () => Navigator.pop(context),
       )
           : null,
       title: Column(
@@ -223,4 +223,11 @@ mixin Utility {
           ],
         ),
       );
+  void showSnack(BuildContext context, String message, Color color) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: color),
+      );
+  }
 }
