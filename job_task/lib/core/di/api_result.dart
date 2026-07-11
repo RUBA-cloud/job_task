@@ -31,7 +31,6 @@ class Failure<T> extends ApiResult<T> {
   /// Top-level status string e.g. "validation_error"
   String? get status => _parsed['status'] as String?;
 
-  /// All field errors e.g. {"email": ["already taken"], "phone": [...]}
   Map<String, dynamic> get errors =>
       (_parsed['errors'] as Map<String, dynamic>?) ?? {};
 
