@@ -11,11 +11,11 @@ class ConvertFromCartEntityToProductItem {
   static ProductEntity call(CartEntity cart) {
     return ProductEntity(
       cart.productId,                              // id
-      cart.name ?? '',                             // title
-      cart.priceAsDouble ?? 0,                     // price (String -> double)
+      cart.name,                             // title
+      cart.price ,                 // price (String -> double)
       '',                                          // description (not in cart)
       '',                                          // category (not in cart)
-      cart.image ?? '',                            // image
+      cart.image,                            // image
       ProductRatingEntity(0, 0),                   // rating (not in cart)
     );
   }

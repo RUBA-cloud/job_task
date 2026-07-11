@@ -8,7 +8,7 @@ import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
 
 import 'package:job_task/data/model/response/cart_entity.dart';
-import 'package:job_task/data/model/response/faviorate_entity.dart';
+import 'package:job_task/data/model/response/favorite_entity.dart';
 import 'package:job_task/data/model/response/product_entity.dart';
 import 'package:job_task/domain/use_cases/cart/add_cart_to_product_use_case.dart';
 import 'package:job_task/domain/use_cases/cart/check_product_in_cart_use_case.dart';
@@ -62,15 +62,17 @@ class HomeCubit extends Cubit<HomeState> {
   bool isProductInCart(int productId) =>
       _cart.any((c) => c.productId == productId);
 
+  bool isProductFavorite(int productId) => _favoriteIds.contains(productId);
+
   /// Badge count = number of DISTINCT products in the cart.
   int get cartCount => _cart.length;
 
+  /// Favorites badge — decrements automatically because it reads _favorites,
+  /// which removeFavorite refreshes from the DB before re-emitting states.
   int get favoriteCount => _favorites.length;
 
-  double get cartTotal => _cart.fold(
-    0.0,
-        (sum, c) => sum + (double.tryParse(c.price ?? '') ?? 0) * c.quantity,
-  );
+  double get cartTotal =>
+      _cart.fold(0.0, (sum, c) => sum + c.price * c.quantity);
 
   // ---------------- Products ----------------
 
@@ -122,8 +124,8 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  /// Heart tap on the home grid. Uses CheckProductInFavUseCase to decide
-  /// whether to add or remove, so the DB is the source of truth.
+  /// Heart tap on the home grid / details page. Uses CheckProductInFavUseCase
+  /// to decide whether to add or remove, so the DB is the source of truth.
   Future<void> toggleFavorite(int productId) async {
     final product = findLoadedProduct(productId);
     if (product == null) return;
@@ -136,6 +138,8 @@ class HomeCubit extends Cubit<HomeState> {
       isFav = data;
     }
 
+    // NOTE: call the use case directly here (not removeFavorite) so `result`
+    // is a Success/Failure the switch below can match on.
     final result = isFav
         ? await removeProductFromFavUseCase.execute(productId)
         : await addProductToFavUseCase.execute(
@@ -153,7 +157,7 @@ class HomeCubit extends Cubit<HomeState> {
         await _loadFavData(); // hearts + favorite badge reflect the DB
         _emitLoaded();
       case Failure<int>(:final error):
-        emit(FailedToUpdateFavoriteError(error ?? 'Could not update favorite'));
+        emit(FailedToUpdateFavoriteError(error));
         _emitLoaded();
     }
   }
@@ -175,14 +179,24 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  /// Remove from the favorites page (re-emits FavoritesLoadedState).
-  Future<void> removeFavorite(FavoriteEntity item) async {
-    final result = await removeProductFromFavUseCase.execute(item.productId);
+  /// Remove from the favorites page.
+  /// Passes PRODUCT id — matches the DAO's WHERE product_id = ?.
+  ///
+  /// After a successful delete:
+  ///  1. _refreshFavorites() reloads _favorites from the DB and emits
+  ///     FavoritesLoadedState -> the favorites LIST rebuilds without the item.
+  ///  2. _emitLoaded() re-emits the home state -> favoriteCount (the badge)
+  ///     DECREMENTS and the grid heart turns gray. The favorites page ignores
+  ///     this emission because its buildWhen only accepts favorites states.
+  Future<void> removeFavorite(int id) async {
+    final result = await removeProductFromFavUseCase.execute(id);
     switch (result) {
       case Success<int>():
-        await _refreshFavorites();
+        await _refreshFavorites(); // list rebuild + _favorites.length - 1
+        _emitLoaded(); // badge decrement + gray heart on the grid
       case Failure<int>(:final error):
-        emit(FailedToUpdateFavoriteError(error ?? 'Could not remove favorite'));
+        emit(FailedToUpdateFavoriteError(error));
+        emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
     }
   }
 
@@ -191,7 +205,7 @@ class HomeCubit extends Cubit<HomeState> {
   Future<void> addFavoriteToCart(FavoriteEntity item) async {
     final checkResult = await checkProductInCartUseCase.execute(item.productId);
     if (checkResult case Success<bool>(data: true)) {
-      emit(ProductAlreadyInCart(item.name ?? 'This product'));
+      emit(ProductAlreadyInCart(item.name));
       emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
       return;
     }
@@ -200,10 +214,10 @@ class HomeCubit extends Cubit<HomeState> {
       AddProductToCartRequest(
         productId: item.productId,
         quantity: 1,
-        name: item.name ?? 'This product',
-        image: item.image??'',
-        price: item.price??'',
-        value: item.value ?? 0,
+        name: item.name,
+        image: item.image,
+        price: item.price.toString(),
+        value: item.value,
       ),
     );
 
@@ -213,7 +227,7 @@ class HomeCubit extends Cubit<HomeState> {
         emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
         emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
       case Failure<int>(:final error):
-        emit(FailedToAddedProductError(error ?? 'Could not add to cart'));
+        emit(FailedToAddedProductError(error));
         emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
     }
   }
@@ -266,7 +280,7 @@ class HomeCubit extends Cubit<HomeState> {
         emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
         _emitLoaded();
       case Failure<int>(:final error):
-        emit(FailedToAddedProductError(error ?? 'Could not add to cart'));
+        emit(FailedToAddedProductError(error));
         _emitLoaded();
     }
   }
@@ -298,7 +312,7 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<int>():
         await _refreshCart();
       case Failure<int>(:final error):
-        emit(FailedToUpdateProductError(error ?? 'Could not update quantity'));
+        emit(FailedToUpdateProductError(error));
     }
   }
 
@@ -308,7 +322,7 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<int>():
         await _refreshCart(); // badge drops by one product
       case Failure<int>(:final error):
-        emit(FailedToUpdateProductError(error ?? 'Could not remove item'));
+        emit(FailedToUpdateProductError(error));
     }
   }
 

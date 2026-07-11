@@ -1,6 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
-part 'cart_entity.g.dart';
+part 'favorite_entity.g.dart';
 
 /// The DB stores price as TEXT — accept both String and num when reading.
 double _priceFromDb(Object? v) =>
@@ -10,35 +10,36 @@ double _priceFromDb(Object? v) =>
 String _priceToDb(double v) => v.toString();
 
 @JsonSerializable()
-class CartEntity {
+class FavoriteEntity {
   final int id;
   @JsonKey(name: 'product_id')
   final int productId;
-  final int quantity;
+  @JsonKey(name: 'is_fav')
+  final int isFav;
   final String name;
-  final int value;
   final String image;
   @JsonKey(fromJson: _priceFromDb, toJson: _priceToDb)
   final double price;
+  final int value;
   @JsonKey(name: 'created_date')
   final String createdDate;
   @JsonKey(name: 'updated_date')
   final String updatedDate;
 
-  CartEntity(
+  FavoriteEntity(
       this.id,
       this.productId,
-      this.quantity,
+      this.isFav,
       this.name,
-      this.value,
       this.image,
       this.price,
+      this.value,
       this.createdDate,
       this.updatedDate,
       );
 
-  factory CartEntity.fromJson(Map<String, dynamic> json) =>
-      _$CartEntityFromJson(json);
+  factory FavoriteEntity.fromJson(Map<String, dynamic> json) =>
+      _$FavoriteEntityFromJson(json);
 
-  Map<String, dynamic> toJson() => _$CartEntityToJson(this);
+  Map<String, dynamic> toJson() => _$FavoriteEntityToJson(this);
 }

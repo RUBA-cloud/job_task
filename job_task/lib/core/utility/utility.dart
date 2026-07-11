@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 
-
 mixin Utility {
   // ---------------- Navigation ----------------
-
-  /// Push a new page on top of the current one.
-  /// Usage: navigateTo(context, const CartPage());
 
   /// Usage:
   ///   navigateTo(context, const CartPage());                       // normal push
@@ -24,7 +20,6 @@ mixin Utility {
     return Navigator.of(context).push<T>(route);
   }
 
-
   /// Push a new page and clear the whole stack (e.g. logout -> login).
   Future<T?> navigateToAndClearStack<T>(BuildContext context, Widget page) {
     return Navigator.of(context).pushAndRemoveUntil(
@@ -36,6 +31,78 @@ mixin Utility {
   /// Go back, optionally returning a result to the previous page.
   void navigateBack<T>(BuildContext context, [T? result]) {
     Navigator.of(context).maybePop(result);
+  }
+
+  // ---------------- Confirm-remove dialog ----------------
+
+  /// Shows a confirmation dialog before removing an item.
+  /// Returns TRUE only if the user taps the confirm button.
+  ///
+  /// Usage (cart / favorites):
+  ///   final ok = await showRemoveDialog(
+  ///     context,
+  ///     message: 'Remove "${item.name}" from your cart?',
+  ///   );
+  ///   if (ok) cubit.removeCartItem(item);
+  ///
+  /// Also works directly as Dismissible.confirmDismiss:
+  ///   confirmDismiss: (_) => showRemoveDialog(context, ...),
+  Future<bool> showRemoveDialog(
+      BuildContext context, {
+        String title = 'Remove item',
+        String message = 'Are you sure you want to remove this item?',
+        String confirmText = 'Remove',
+        String cancelText = 'Cancel',
+      }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textGrey,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.textGrey),
+            child: Text(cancelText),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              confirmText,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    // Tapping outside / back button returns null -> treat as "cancel".
+    return result ?? false;
   }
 
   // ---------------- Error view ----------------
@@ -223,6 +290,7 @@ mixin Utility {
           ],
         ),
       );
+
   void showSnack(BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

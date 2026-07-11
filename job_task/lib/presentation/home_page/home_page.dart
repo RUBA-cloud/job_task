@@ -4,7 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/core/utility/utility.dart';
 import 'package:job_task/presentation/cart/cart_page.dart';
-import 'package:job_task/presentation/faviorate/fav_page.dart';
+import 'package:job_task/presentation/faviorate/fav_page.dart' hide CartPage;
 import 'package:job_task/presentation/home_page/product_details.dart';
 import 'package:job_task/presentation/widget/product_card.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
@@ -99,13 +99,8 @@ late HomeCubit homeCubit ;
                   value: homeCubit,
                   child: const FavoritesPage()
                 ));}
-          else if (state is AddedProductSuccessToCart) {
-            showSnack(context, 'Added to cart', AppColors.ink);
-          } else if (state is ProductAlreadyInCart) {
-            showSnack(
-                context, '${state.productName} is already in your cart',
-                AppColors.accent);
-          } else if (state is FailedToAddedProductError) {
+
+        if (state is FailedToAddedProductError) {
             showSnack(context, state.error, AppColors.accent);
           }},
 

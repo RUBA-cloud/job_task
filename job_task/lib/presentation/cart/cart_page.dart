@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart' show SizeExtension;
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:job_task/core/extenstion/convert_from_cart_entity_to_product_item.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/core/utility/utility.dart';
@@ -44,17 +44,11 @@ class _CartPageState extends State<CartPage> with Utility {
         curr is FailedToUpdateProductError || curr is GoToProductDetails,
         listener: (context, state) {
           if (state is FailedToUpdateProductError) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text(state.error),
-                  backgroundColor: AppColors.accent,
-                ),
-              );
+            showSnack(context, state.error, AppColors.accent);
           } else if (state is GoToProductDetails) {
             navigateTo(
               context,
+              isReplacement: true,
               BlocProvider.value(
                 value: _homeCubit,
                 child: ProductDetailsPage(product: state.product),
@@ -96,20 +90,34 @@ class _CartPageState extends State<CartPage> with Utility {
     );
   }
 
+  // ---------------- confirm + remove ----------------
+
+  /// Asks for confirmation; removes the item only if the user confirms.
+  Future<void> _confirmAndRemove(CartEntity item) async {
+    final confirmed = await showRemoveDialog(
+      context,
+      title: 'Remove from cart',
+      message: 'Remove "${item.name}" from your cart?',
+    );
+    if (confirmed) {
+      _homeCubit.removeCartItem(item);
+    }
+  }
+
   // ---------------- body: list + total bar ----------------
 
   Widget _buildBody(List<CartEntity> items) {
     final total = items.fold<double>(
       0.0,
-          (sum, c) => sum + (c.priceAsDouble ?? 0) * c.quantity,
+          (sum, c) => sum + (c.price) * c.quantity,
     );
     return Column(
       children: [
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => SizedBox(height: 12.h),
             itemBuilder: (_, i) => _buildTile(items[i]),
           ),
         ),
@@ -124,18 +132,24 @@ class _CartPageState extends State<CartPage> with Utility {
     return Dismissible(
       key: ValueKey(item.id),
       direction: DismissDirection.endToStart,
+      // Ask before dismissing — returning false snaps the row back.
+      confirmDismiss: (_) => showRemoveDialog(
+        context,
+        title: 'Remove from cart',
+        message: 'Remove "${item.name}" from your cart?',
+      ),
       onDismissed: (_) => _homeCubit.removeCartItem(item),
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
+        padding: EdgeInsets.only(right: 24.w),
         decoration: BoxDecoration(
           color: AppColors.accent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(18.r),
         ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        child: Icon(Icons.delete_outline, color: Colors.white, size: 24.sp),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18.r),
         // Tapping a row opens the product details for that item.
         onTap: () {
           final full = _homeCubit.findLoadedProduct(item.productId);
@@ -143,12 +157,11 @@ class _CartPageState extends State<CartPage> with Utility {
             full ?? ConvertFromCartEntityToProductItem.call(item),
           );
         },
-
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12.r),
           decoration: BoxDecoration(
             color: AppColors.card,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(18.r),
             border: Border.all(color: AppColors.shadow),
           ),
           child: Row(
@@ -157,42 +170,42 @@ class _CartPageState extends State<CartPage> with Utility {
               SizedBox(
                 width: 100.w,
                 height: 100.h,
-                child: AppCachedImage(imageUrl: item.image ?? ''),
+                child: AppCachedImage(imageUrl: item.image),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.name ?? 'Unnamed product',
+                      item.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.ink,
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6.h),
                     Text(
-                      '\$${item.price}', // this row's total
-                      style: const TextStyle(
+                      '\$${((item.price) * item.quantity).toStringAsFixed(2)}', // this row's total
+                      style: TextStyle(
                         color: AppColors.ink,
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                        fontSize: 15.sp,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10.h),
                     _buildQuantityStepper(item),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: () => _homeCubit.removeCartItem(item),
-                icon: const Icon(Icons.close,
-                    size: 18, color: AppColors.textGrey),
-                splashRadius: 18,
+                // X button asks for confirmation first, too.
+                onPressed: () => _confirmAndRemove(item),
+                icon: Icon(Icons.close, size: 18.sp, color: AppColors.textGrey),
+                splashRadius: 18.r,
               ),
             ],
           ),
@@ -208,9 +221,9 @@ class _CartPageState extends State<CartPage> with Utility {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -220,13 +233,13 @@ class _CartPageState extends State<CartPage> with Utility {
             onTap: () => _homeCubit.changeQuantity(item, item.quantity - 1),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(horizontal: 14.w),
             child: Text(
               '${item.quantity}',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.ink,
                 fontWeight: FontWeight.w700,
-                fontSize: 15,
+                fontSize: 15.sp,
               ),
             ),
           ),
@@ -247,17 +260,17 @@ class _CartPageState extends State<CartPage> with Utility {
   }) {
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(20.r),
       child: Container(
-        width: 30,
-        height: 30,
+        width: 30.w,
+        height: 30.w, // keep it a circle: same value for both sides
         decoration: BoxDecoration(
           color: enabled ? AppColors.ink : Colors.grey.shade300,
           shape: BoxShape.circle,
         ),
         child: Icon(
           icon,
-          size: 16,
+          size: 16.sp,
           color: enabled ? AppColors.card : AppColors.textGrey,
         ),
       ),
@@ -269,15 +282,15 @@ class _CartPageState extends State<CartPage> with Utility {
   Widget _buildTotalBar(double total) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 20.h + bottomInset),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+            blurRadius: 16.r,
+            offset: Offset(0, -4.h),
           ),
         ],
       ),
@@ -287,36 +300,38 @@ class _CartPageState extends State<CartPage> with Utility {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Total',
-                  style: TextStyle(color: AppColors.textGrey, fontSize: 15)),
+              Text(
+                'Total',
+                style: TextStyle(color: AppColors.textGrey, fontSize: 15.sp),
+              ),
               Text(
                 '\$${total.toStringAsFixed(2)}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.ink,
                   fontWeight: FontWeight.w800,
-                  fontSize: 20,
+                  fontSize: 20.sp,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14.h),
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 52.h,
             child: ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.ink,
                 foregroundColor: AppColors.card,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Checkout',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                  fontSize: 16.sp,
                 ),
               ),
             ),

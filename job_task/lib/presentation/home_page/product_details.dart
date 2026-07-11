@@ -8,7 +8,7 @@ import 'package:job_task/presentation/widget/app_image.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
 import 'package:job_task/services/home_page/home_state.dart';
 
-class ProductDetailsPage extends StatefulWidget  {
+class ProductDetailsPage extends StatefulWidget {
   final ProductEntity product;
 
   const ProductDetailsPage({super.key, required this.product});
@@ -19,11 +19,13 @@ class ProductDetailsPage extends StatefulWidget  {
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
   late HomeCubit cubit;
-  @override void initState() {
-    cubit =HomeCubit.get(context);
-    // TODO: implement initState
+
+  @override
+  void initState() {
+    cubit = HomeCubit.get(context);
     super.initState();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,13 +34,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
         context: context,
         showBackButton: true,
         title: 'Details',
+        onBack: () => Navigator.pop(context),
         subtitle: widget.product.category,
+
+        // -------- Favorite heart: red when favorite, clear when not --------
         actionWidget: BlocBuilder<HomeCubit, HomeState>(
+          // Rebuild on any state that can change the favorites snapshot.
+          buildWhen: (_, current) =>
+          current is GetHomeLoaded ||
+              current is FavoritesLoadedState ||
+              current is FailedToUpdateFavoriteError,
           builder: (context, state) {
-            final isFavorite = state is GetHomeLoaded &&
-                state.favoriteIds.contains(widget.product.id);
+            // Read the live snapshot instead of `state is GetHomeLoaded` —
+            // this also works when arriving from the favorites/cart pages,
+            // where the last state isn't GetHomeLoaded.
+            final isFavorite = cubit.isProductFavorite(widget.product.id);
             return InkWell(
-              onTap: () => HomeCubit.get(context).toggleFavorite(widget.product.id),
+              onTap: () => cubit.toggleFavorite(widget.product.id),
               borderRadius: BorderRadius.circular(14.r),
               child: Container(
                 padding: EdgeInsets.all(10.w),
@@ -99,7 +111,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Text(
-                widget.product.category[0].toUpperCase() +
+                widget.product.category.isEmpty
+                    ? 'General'
+                    : widget.product.category[0].toUpperCase() +
                     widget.product.category.substring(1),
                 style: TextStyle(
                   fontSize: 12.sp,
@@ -193,8 +207,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
               children: [
                 Text(
                   'Price',
-                  style:
-                  TextStyle(fontSize: 12.sp, color: AppColors.textGrey),
+                  style: TextStyle(fontSize: 12.sp, color: AppColors.textGrey),
                 ),
                 Text(
                   '\$${widget.product.price.toStringAsFixed(2)}',
@@ -207,24 +220,43 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
               ],
             ),
             SizedBox(width: 20.w),
+
+            // -------- Cart button: accent (red) when already in cart --------
             Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.ink,
-                  foregroundColor: AppColors.card,
-                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.r),
-                  ),
-                ),
-                onPressed: () { cubit.addToCart(widget.product);
+              child: BlocBuilder<HomeCubit, HomeState>(
+                buildWhen: (_, current) =>
+                current is GetHomeLoaded ||
+                    current is AddedProductSuccessToCart ||
+                    current is CartLoadedState ||
+                    current is ProductAlreadyInCart,
+                builder: (context, state) {
+                  final inCart = cubit.isProductInCart(widget.product.id);
+                  return ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                      inCart ? AppColors.accent : AppColors.ink,
+                      foregroundColor: AppColors.card,
+                      padding: EdgeInsets.symmetric(vertical: 14.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16.r),
+                      ),
+                    ),
+                    onPressed: () => cubit.addToCart(widget.product),
+                    icon: Icon(
+                      inCart
+                          ? Icons.shopping_cart_rounded
+                          : Icons.shopping_bag_outlined,
+                      size: 20.sp,
+                    ),
+                    label: Text(
+                      inCart ? 'In Cart' : 'Add to Cart',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
                 },
-                icon: Icon(Icons.shopping_bag_outlined, size: 20.sp),
-                label: Text(
-                  'Add to Cart',
-                  style: TextStyle(
-                      fontSize: 14.sp, fontWeight: FontWeight.w700),
-                ),
               ),
             ),
           ],

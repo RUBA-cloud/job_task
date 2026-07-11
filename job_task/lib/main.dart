@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
           ),
           home: BlocProvider(
             create: (context) => getIt<HomeCubit>()..loadProducts(),

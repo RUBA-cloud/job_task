@@ -10,7 +10,7 @@ import 'package:job_task/services/home_page/home_state.dart';
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
   final bool isFavorite;
-  final bool isInCart; // initial seed; the BlocBuilder keeps it live afterwards
+  final bool isInCart;
   final VoidCallback onFavoriteTap;
   final VoidCallback onTapped;
   final VoidCallback onCartTap;
@@ -44,7 +44,7 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -------- Image + favorite button --------
+            // ---------------- Image + Favorite ----------------
             Expanded(
               child: Stack(
                 children: [
@@ -56,41 +56,61 @@ class ProductCard extends StatelessWidget {
                         padding: EdgeInsets.all(12.w),
                         child: Hero(
                           tag: 'product-${product.id}',
-                          child: AppCachedImage(imageUrl: product.image),
+                          child: AppCachedImage(
+                            imageUrl: product.image,
+                          ),
                         ),
                       ),
                     ),
                   ),
+
                   Positioned(
                     top: 8.h,
                     right: 8.w,
-                    child: Material(
-                      color: AppColors.card,
-                      shape: const CircleBorder(),
-                      elevation: 1,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onFavoriteTap,
-                        child: Padding(
-                          padding: EdgeInsets.all(6.w),
-                          child: Icon(
-                            isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            size: 18.sp,
-                            color: isFavorite
-                                ? AppColors.accent
-                                : AppColors.textGrey,
+                    child: BlocBuilder<HomeCubit, HomeState>(
+                      // Rebuild whenever the favorites snapshot changes:
+                      // heart taps on the grid emit GetHomeLoaded, and
+                      // removals on the favorites page emit FavoritesLoadedState.
+                      buildWhen: (previous, current) =>
+                      current is GetHomeLoaded ||
+                          current is FavoritesLoadedState,
+                      builder: (context, state) {
+                        // Read from the cubit snapshot (kept in sync with the
+                        // DB) instead of only GetHomeLoaded.favoriteIds — this
+                        // is what turns the heart GRAY right after a favorite
+                        // is removed anywhere in the app.
+                        final favorite =
+                        HomeCubit.get(context).isProductFavorite(product.id);
+
+                        return Material(
+                          color: AppColors.card,
+                          shape: const CircleBorder(),
+                          elevation: 1,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: onFavoriteTap,
+                            child: Padding(
+                              padding: EdgeInsets.all(6.w),
+                              child: Icon(
+                                favorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 18.sp,
+                                color: favorite
+                                    ? AppColors.accent
+                                    : AppColors.textGrey, // gray when removed
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
             ),
 
-            // -------- Title + price + cart button --------
+            // ---------------- Product Info ----------------
             Padding(
               padding: EdgeInsets.fromLTRB(12.w, 4.h, 12.w, 12.h),
               child: Column(
@@ -119,16 +139,18 @@ class ProductCard extends StatelessWidget {
                           color: AppColors.ink,
                         ),
                       ),
-                      // Add-to-cart button — rebuilds and turns red once the
-                      // product is in the cart.
+
+                      /// ---------------- Cart ----------------
                       BlocBuilder<HomeCubit, HomeState>(
-                        buildWhen: (prev, curr) =>
-                        curr is GetHomeLoaded ||
-                            curr is AddedProductSuccessToCart ||
-                            curr is CartLoadedState,
+                        buildWhen: (previous, current) =>
+                        current is GetHomeLoaded ||
+                            current is AddedProductSuccessToCart ||
+                            current is CartLoadedState,
                         builder: (context, state) {
                           final inCart = isInCart ||
-                              HomeCubit.get(context).isProductInCart(product.id);
+                              HomeCubit.get(context)
+                                  .isProductInCart(product.id);
+
                           return Material(
                             color: inCart ? AppColors.accent : AppColors.ink,
                             borderRadius: BorderRadius.circular(10.r),

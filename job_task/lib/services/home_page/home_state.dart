@@ -1,5 +1,5 @@
 import 'package:job_task/data/model/response/cart_entity.dart';
-import 'package:job_task/data/model/response/faviorate_entity.dart';
+import 'package:job_task/data/model/response/favorite_entity.dart';
 import 'package:job_task/data/model/response/product_entity.dart';
 
 abstract class HomeState {}

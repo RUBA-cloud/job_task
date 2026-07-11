@@ -1,12 +1,14 @@
 import 'package:injectable/injectable.dart';
 import 'package:job_task/core/di/api_result.dart';
+import 'package:job_task/core/log_manager.dart';
 import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/response/cart_entity.dart';
-import 'package:job_task/data/model/response/faviorate_entity.dart';
+import 'package:job_task/data/model/response/favorite_entity.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
+
 @singleton
 class SqlLiteConnection {
   Database? _database;
@@ -27,19 +29,14 @@ class SqlLiteConnection {
     }
   }
 
-  /// Opens (recreating) the database. Left as a plain Future because it's a
-  /// lifecycle call (awaited in main); wrap the call site if you want to
-  /// handle its failure there.
+  /// Opens the database. Awaited in main before runApp.
   Future<void> open() async {
     final databasesPath = await getDatabasesPath();
     final path = join(databasesPath, 'ecommerce_app.db');
 
-    // Delete the database so we start fresh (drop this line to persist data).
-
     _database = await openDatabase(
       path,
       version: 1,
-
       onCreate: (Database db, int version) async {
         await db.execute(
           'CREATE TABLE Favorites ('
@@ -92,6 +89,7 @@ class SqlLiteConnection {
         );
       });
 
+  /// Deletes by PRODUCT id — same key the cubit and check methods use.
   Future<ApiResult<int>> removeFavorite(int productId) =>
       _run('removeFavorite', () async {
         final db = _requireDb();
@@ -105,10 +103,22 @@ class SqlLiteConnection {
   Future<ApiResult<List<FavoriteEntity>>> getFavorites() =>
       _run('getFavorites', () async {
         final db = _requireDb();
-
         final rows = await db.query('Favorites', orderBy: 'created_date DESC');
-        return rows.map((row) => FavoriteEntity.fromMap(row)).toList();
+        LogsManager.logInfo('getFavorites → ${rows.length} rows: $rows');
+        return rows.map((row) => FavoriteEntity.fromJson(row)).toList();
+      });
 
+  Future<ApiResult<bool>> isInFaviorate(int productId) =>
+      _run('isInFaviorate', () async {
+        final db = _requireDb();
+        final rows = await db.query(
+          'Favorites',
+          columns: ['id'], // only need to know it exists
+          where: 'product_id = ?',
+          whereArgs: [productId],
+          limit: 1, // stop at the first match
+        );
+        return rows.isNotEmpty;
       });
 
   // ---------------- Cart ----------------
@@ -148,32 +158,23 @@ class SqlLiteConnection {
       _run('getCartItems', () async {
         final db = _requireDb();
         final rows = await db.query('Carts', orderBy: 'created_date DESC');
-        return rows.map((row) => CartEntity.fromMap(row)).toList();
+        LogsManager.logInfo('getCartItems → ${rows.length} rows: $rows');
+        return rows.map((row) => CartEntity.fromJson(row)).toList();
       });
+
   Future<ApiResult<bool>> isInCart(int productId) =>
       _run('isInCart', () async {
         final db = _requireDb();
         final rows = await db.query(
           'Carts',
-          columns: ['id'],           // only need to know it exists
+          columns: ['id'], // only need to know it exists
           where: 'product_id = ?',
           whereArgs: [productId],
-          limit: 1,                  // stop at the first match
+          limit: 1, // stop at the first match
         );
         return rows.isNotEmpty;
       });
-  Future<ApiResult<bool>> isInFaviorate(int productId) =>
-      _run('isInCart', () async {
-        final db = _requireDb();
-        final rows = await db.query(
-          'Favorites',
-          columns: ['id'],           // only need to know it exists
-          where: 'product_id = ?',
-          whereArgs: [productId],
-          limit: 1,                  // stop at the first match
-        );
-        return rows.isNotEmpty;
-      });
+
   Future<void> close() async {
     await _database?.close();
     _database = null;
