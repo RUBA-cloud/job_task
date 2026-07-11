@@ -5,10 +5,10 @@ import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
 import 'package:job_task/domain/repository/home_page_repo.dart';
 
 @singleton
-class FaviorateProductToFavUseCase {
+class RemoveProductFromFavUseCase {
   final HomePageRepo homePageRepo;
-  FaviorateProductToFavUseCase(this.homePageRepo);
+  RemoveProductFromFavUseCase(this.homePageRepo);
 
-  Future<ApiResult<int>> execute(AddToFavRequest favRequest) => homePageRepo.addProductToFav(favRequest);
+  Future<ApiResult<int>> execute(int favRequest) => homePageRepo.removeProductFromCard(favRequest);
 }
 

@@ -4,9 +4,9 @@ import 'package:job_task/core/di/api_result.dart';
 import 'package:job_task/domain/repository/home_page_repo.dart';
 
 @singleton
-class CheckProductInUseCase {
+class CheckProductInCartUseCase {
   final HomePageRepo homePageRepo;
-  CheckProductInUseCase(this.homePageRepo);
+  CheckProductInCartUseCase(this.homePageRepo);
   Future<ApiResult<bool>> execute(int productId) => homePageRepo.checkItemAlreadyInCard(productId);
 }
 

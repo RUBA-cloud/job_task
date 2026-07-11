@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/core/utility/utility.dart';
 import 'package:job_task/presentation/cart/cart_page.dart';
+import 'package:job_task/presentation/faviorate/fav_page.dart';
 import 'package:job_task/presentation/home_page/product_details.dart';
 import 'package:job_task/presentation/widget/product_card.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
@@ -18,11 +19,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with Utility {
   final TextEditingController _searchController = TextEditingController();
-
+late HomeCubit homeCubit ;
   @override
   void initState() {
     super.initState();
-    HomeCubit.get(context).loadProducts();
+    homeCubit =HomeCubit.get(context);
+    homeCubit.loadProducts();
   }
 
   @override
@@ -35,7 +37,7 @@ class _HomePageState extends State<HomePage> with Utility {
 
   @override
   Widget build(BuildContext context) {
-    final homeCubit = HomeCubit.get(context);
+
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -81,16 +83,23 @@ class _HomePageState extends State<HomePage> with Utility {
             navigateTo(
               context,
               BlocProvider.value(
-                value: HomeCubit.get(context),
+                value: homeCubit,
                 child: const CartPage(),
               ),
             ).then((_) {
               // Refresh the badge after returning from the cart.
               if (mounted) {
-                HomeCubit.get(context).syncCart();
+                homeCubit.syncCart();
               }
             });
-          } else if (state is AddedProductSuccessToCart) {
+          } else if (state is GoToFavorites) {
+            navigateTo(
+                context,
+                BlocProvider.value(
+                  value: homeCubit,
+                  child: const FavoritesPage()
+                ));}
+          else if (state is AddedProductSuccessToCart) {
             showSnack(context, 'Added to cart', AppColors.ink);
           } else if (state is ProductAlreadyInCart) {
             showSnack(
@@ -98,8 +107,9 @@ class _HomePageState extends State<HomePage> with Utility {
                 AppColors.accent);
           } else if (state is FailedToAddedProductError) {
             showSnack(context, state.error, AppColors.accent);
-          }
-        },
+          }},
+
+
         child: BlocBuilder<HomeCubit, HomeState>(
           // Only rebuild the page for HOME states, so cart/add states don't
           // blank the grid.

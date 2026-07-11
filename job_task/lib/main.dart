@@ -13,8 +13,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configureDependencies();
 
-  final db = SqlLiteConnection();
-  await db.open();
+  // Open the SAME instance GetIt hands to the repo — not a new one.
+  await getIt<SqlLiteConnection>().open();
 
   // Register the observer BEFORE runApp so every Bloc/Cubit is tracked.
   Bloc.observer = AppBlocObserver();

@@ -3,10 +3,11 @@ import 'package:job_task/core/di/api_result.dart';
 import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/faviorate_entity.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
-
+@singleton
 class SqlLiteConnection {
   Database? _database;
 
@@ -101,10 +102,13 @@ class SqlLiteConnection {
         );
       });
 
-  Future<ApiResult<List<Map<String, Object?>>>> getFavorites() =>
+  Future<ApiResult<List<FavoriteEntity>>> getFavorites() =>
       _run('getFavorites', () async {
         final db = _requireDb();
-        return db.query('Favorites', orderBy: 'created_date DESC');
+
+        final rows = await db.query('Favorites', orderBy: 'created_date DESC');
+        return rows.map((row) => FavoriteEntity.fromMap(row)).toList();
+
       });
 
   // ---------------- Cart ----------------
@@ -151,6 +155,18 @@ class SqlLiteConnection {
         final db = _requireDb();
         final rows = await db.query(
           'Carts',
+          columns: ['id'],           // only need to know it exists
+          where: 'product_id = ?',
+          whereArgs: [productId],
+          limit: 1,                  // stop at the first match
+        );
+        return rows.isNotEmpty;
+      });
+  Future<ApiResult<bool>> isInFaviorate(int productId) =>
+      _run('isInCart', () async {
+        final db = _requireDb();
+        final rows = await db.query(
+          'Favorites',
           columns: ['id'],           // only need to know it exists
           where: 'product_id = ?',
           whereArgs: [productId],

@@ -1,4 +1,5 @@
 import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/faviorate_entity.dart';
 import 'package:job_task/data/model/response/product_entity.dart';
 
 abstract class HomeState {}
@@ -96,5 +97,26 @@ class UpdateProductSuccessToCart implements HomeState {
 
 class FailedToUpdateProductError implements HomeState {
  final String error;
- FailedToUpdateProductError(this.error);
-}
+ FailedToUpdateProductError(this.error);}
+
+ /// Favorites States
+ class FavoritesLoadingState implements HomeState {}
+
+ class FavoritesLoadedState implements HomeState {
+ final List<FavoriteEntity> favorites;
+ FavoritesLoadedState(this.favorites);
+ }
+
+ class FavoritesFailed implements HomeState {}
+
+ /// Emitted when the product is already in favorites.
+ class ProductAlreadyInFavorites implements HomeState {
+ final String productName;
+ ProductAlreadyInFavorites(this.productName);
+ }
+
+ class FailedToUpdateFavoriteError implements HomeState {
+ final String error;
+ FailedToUpdateFavoriteError(this.error);
+ }
+
