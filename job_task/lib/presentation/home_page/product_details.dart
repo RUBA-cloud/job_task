@@ -26,6 +26,43 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
     super.initState();
   }
 
+  // ---------------- confirm + remove ----------------
+
+  /// Heart tap: adding is instant; REMOVING asks for confirmation first.
+  Future<void> _onFavoriteTap() async {
+    final isFavorite = cubit.isProductFavorite(widget.product.id);
+    if (!isFavorite) {
+      cubit.toggleFavorite(widget.product.id); // add — no dialog needed
+      return;
+    }
+    final confirmed = await showRemoveDialog(
+      context,
+      title: 'Remove from favorites',
+      message: 'Remove "${widget.product.title}" from your favorites?',
+    );
+    if (confirmed) {
+      cubit.toggleFavorite(widget.product.id); // toggle off = remove
+    }
+  }
+
+  /// Cart button: adding is instant; if already in cart, tapping asks
+  /// whether to REMOVE it from the cart.
+  Future<void> _onCartTap() async {
+    final inCart = cubit.isProductInCart(widget.product.id);
+    if (!inCart) {
+      cubit.addToCart(widget.product); // add — no dialog needed
+      return;
+    }
+    final confirmed = await showRemoveDialog(
+      context,
+      title: 'Remove from cart',
+      message: 'Remove "${widget.product.title}" from your cart?',
+    );
+    if (confirmed) {
+      cubit.removeCartByProductId(widget.product.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,7 +87,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
             // where the last state isn't GetHomeLoaded.
             final isFavorite = cubit.isProductFavorite(widget.product.id);
             return InkWell(
-              onTap: () => cubit.toggleFavorite(widget.product.id),
+              onTap: _onFavoriteTap, // dialog before removal
               borderRadius: BorderRadius.circular(14.r),
               child: Container(
                 padding: EdgeInsets.all(10.w),
@@ -184,7 +221,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
         ),
       ),
 
-      // -------- Bottom bar: price + add to cart --------
+      // -------- Bottom bar: price + add/remove cart --------
       bottomNavigationBar: Container(
         padding: EdgeInsets.fromLTRB(
             20.w, 12.h, 20.w, 12.h + MediaQuery.of(context).padding.bottom),
@@ -241,7 +278,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> with Utility {
                         borderRadius: BorderRadius.circular(16.r),
                       ),
                     ),
-                    onPressed: () => cubit.addToCart(widget.product),
+                    onPressed: _onCartTap, // dialog before removal
                     icon: Icon(
                       inCart
                           ? Icons.shopping_cart_rounded

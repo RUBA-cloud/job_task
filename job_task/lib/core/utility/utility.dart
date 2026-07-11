@@ -266,7 +266,7 @@ mixin Utility {
               child: Icon(
                 icon,
                 size: 48,
-                color: AppColors.ink.withOpacity(0.35),
+                color: AppColors.ink.withValues(alpha: 0.35),
               ),
             ),
             const SizedBox(height: 20),

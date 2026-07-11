@@ -179,15 +179,6 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  /// Remove from the favorites page.
-  /// Passes PRODUCT id — matches the DAO's WHERE product_id = ?.
-  ///
-  /// After a successful delete:
-  ///  1. _refreshFavorites() reloads _favorites from the DB and emits
-  ///     FavoritesLoadedState -> the favorites LIST rebuilds without the item.
-  ///  2. _emitLoaded() re-emits the home state -> favoriteCount (the badge)
-  ///     DECREMENTS and the grid heart turns gray. The favorites page ignores
-  ///     this emission because its buildWhen only accepts favorites states.
   Future<void> removeFavorite(int id) async {
     final result = await removeProductFromFavUseCase.execute(id);
     switch (result) {
@@ -200,8 +191,6 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  /// "Add to cart" from the favorites page. Checks the cart via
-  /// CheckProductInCartUseCase, inserts, then re-emits the favorites list.
   Future<void> addFavoriteToCart(FavoriteEntity item) async {
     final checkResult = await checkProductInCartUseCase.execute(item.productId);
     if (checkResult case Success<bool>(data: true)) {
@@ -232,9 +221,6 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  // ---------------- Cart ----------------
-
-  /// Reloads cart data into _cart WITHOUT emitting cart states.
   Future<void> _loadCartData() async {
     final result = await getCartUseCase.execute();
     if (result case Success<List<CartEntity>>(:final data)) {
@@ -242,14 +228,10 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  /// Re-reads cart data, then re-emits the home state so the badge updates.
   Future<void> syncCart() async {
     await _loadCartData();
     _emitLoaded();
   }
-
-  /// Add to cart from the home grid. Uses CheckProductInCartUseCase (DB is
-  /// the source of truth) instead of the in-memory snapshot.
   Future<void> addToCart(ProductEntity product) async {
     var alreadyInCart = isProductInCart(product.id); // fallback
     final checkResult = await checkProductInCartUseCase.execute(product.id);
@@ -311,6 +293,17 @@ class HomeCubit extends Cubit<HomeState> {
     switch (result) {
       case Success<int>():
         await _refreshCart();
+      case Failure<int>(:final error):
+        emit(FailedToUpdateProductError(error));
+    }
+  }
+  /// Remove from cart by PRODUCT id (used by the details page).
+  Future<void> removeCartByProductId(int productId) async {
+    final result = await removeCartItemUseCase.execute(productId);
+    switch (result) {
+      case Success<int>():
+        await _loadCartData();  // snapshot: item gone, badge -1
+        _emitLoaded();          // button flips back to "Add to Cart"
       case Failure<int>(:final error):
         emit(FailedToUpdateProductError(error));
     }
