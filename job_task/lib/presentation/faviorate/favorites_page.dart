@@ -61,7 +61,7 @@ class _FavoritesPageState extends State<FavoritesPage> with Utility {
               showSnack(context, error, AppColors.accent);
             case ProductAlreadyInCart(:final productName):
               showSnack(
-                  context, '$productName is already in the cart', AppColors.card);
+                  context, '$productName is already in the cart', Colors.red);
             case AddedProductSuccessToCart():
               showSnack(context, 'Added to cart', AppColors.card);
           // Navigate to product details when a favorite is tapped.
