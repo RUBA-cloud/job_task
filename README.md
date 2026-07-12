@@ -78,8 +78,3 @@ Two tables back the offline features:
 
 Prices are stored as TEXT and converted safely to `double` in the entity layer.
 
-## 📸 Screenshots
-
-| Home | Details | Cart | Favorites |
-|---|---|---|---|
-| _add screenshot_ | _add screenshot_ | _add screenshot_ | _add screenshot_ |
