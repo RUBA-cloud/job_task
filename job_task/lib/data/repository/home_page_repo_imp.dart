@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:job_task/core/di/api_result.dart';
 import 'package:job_task/core/di/sql_lite_connection.dart';
-import 'package:job_task/core/extenstion/dio_exception_exstenstion.dart';
 import 'package:job_task/data/api_service/api_service.dart';
 import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
@@ -26,11 +25,10 @@ class HomePageRepoImp implements HomePageRepo {
       return Success(data: res);
     } on DioException catch (e) {
       return Failure(
-        error: DioExceptionExtension.parseDioError(e),
+        error: e,
         statusCode: e.response?.statusCode,
       );
-    } catch (e) {
-      return Failure(error: e.toString());
+
     }
   }
 

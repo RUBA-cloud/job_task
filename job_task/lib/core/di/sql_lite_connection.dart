@@ -23,9 +23,9 @@ class SqlLiteConnection {
       final data = await action();
       return Success<T>(data: data);
     } on DatabaseException catch (e) {
-      return Failure<T>(error: 'Database error during $operation: $e');
+      return Failure<T>(sqlError: e.toString());
     } catch (e) {
-      return Failure<T>(error: 'Unexpected error during $operation: $e');
+      return Failure<T>(sqlError: e.toString());
     }
   }
 

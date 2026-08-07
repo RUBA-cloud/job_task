@@ -12,5 +12,6 @@ class AppColors {
   static const Color textGrey = Colors.grey; // secondary text
   static Color? textGreyLight = Colors.grey[500]; // subtitles
   static Color? textGreyDark = Colors.grey[700]; // chip labelsß
+  static const Color blackColor= Colors.black; // badge
   static Color shadow = ink.withValues(alpha: 0.06); // soft card shadows
 }

@@ -2,11 +2,12 @@ class ApiConstants {
   ApiConstants._(); // no instances
 
   // ── Base ───────────────────────────────────────────────────────
-  static const String baseUrl = 'https://fakestoreapi.com/';
+  static const String baseUrl = 'http://127.0.0.1:8000/api/';
 
   // ── Endpoints ──────────────────────────────────────────────────
   static const String products  = 'products';
-
+  static const String login = 'auth/login';
+  static const String forgotPassword = 'auth/forgot-password';
 
   // ── Headers ────────────────────────────────────────────────────
   static const String acceptHeader = 'application/json';

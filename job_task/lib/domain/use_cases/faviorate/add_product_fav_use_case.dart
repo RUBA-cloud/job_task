@@ -8,7 +8,6 @@ import 'package:job_task/domain/repository/home_page_repo.dart';
 class AddProductToFavUseCase {
   final HomePageRepo homePageRepo;
   AddProductToFavUseCase(this.homePageRepo);
-
   Future<ApiResult<int>> execute(AddToFavRequest favRequest) => homePageRepo.addProductToFav(favRequest);
 }
 

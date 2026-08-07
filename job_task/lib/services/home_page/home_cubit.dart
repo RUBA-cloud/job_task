@@ -99,8 +99,8 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<List<ProductEntity>>(:final data):
         _allProducts = data;
         _emitLoaded(); // badge + in-cart + favorite flags reflect the DB
-      case Failure<List<ProductEntity>>(:final error):
-        emit(GetHomeFailed(error));
+      case Failure<List<ProductEntity>>():
+        emit(GetHomeFailed(''));
     }
   }
 
@@ -156,9 +156,9 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<int>():
         await _loadFavData(); // hearts + favorite badge reflect the DB
         _emitLoaded();
-      case Failure<int>(:final error):
-        emit(FailedToUpdateFavoriteError(error));
-        _emitLoaded();
+      case Failure<int>():
+        // emit(FailedToUpdateFavoriteError(result.error.response.statusMessage.toString()));
+        // _emitLoaded();
     }
   }
 
@@ -185,8 +185,8 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<int>():
         await _refreshFavorites(); // list rebuild + _favorites.length - 1
         _emitLoaded(); // badge decrement + gray heart on the grid
-      case Failure<int>(:final error):
-        emit(FailedToUpdateFavoriteError(error));
+      case Failure<int>():
+        // emit(FailedToUpdateFavoriteError(error));
         emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
     }
   }
@@ -215,8 +215,8 @@ class HomeCubit extends Cubit<HomeState> {
         await _loadCartData(); // badge +1
         emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
         emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-      case Failure<int>(:final error):
-        emit(FailedToAddedProductError(error));
+      case Failure<int>():
+        //emit(FailedToAddedProductError(error));
         emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
     }
   }
@@ -261,8 +261,8 @@ class HomeCubit extends Cubit<HomeState> {
         await _loadCartData(); // refresh so the badge count updates (+1 product)
         emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
         _emitLoaded();
-      case Failure<int>(:final error):
-        emit(FailedToAddedProductError(error));
+      case Failure<int>():
+        //emit(FailedToAddedProductError(error));
         _emitLoaded();
     }
   }
@@ -293,8 +293,8 @@ class HomeCubit extends Cubit<HomeState> {
     switch (result) {
       case Success<int>():
         await _refreshCart();
-      case Failure<int>(:final error):
-        emit(FailedToUpdateProductError(error));
+      case Failure<int>():
+       // emit(FailedToUpdateProductError(error));
     }
   }
   /// Remove from cart by PRODUCT id (used by the details page).
@@ -304,8 +304,8 @@ class HomeCubit extends Cubit<HomeState> {
       case Success<int>():
         await _loadCartData();  // snapshot: item gone, badge -1
         _emitLoaded();          // button flips back to "Add to Cart"
-      case Failure<int>(:final error):
-        emit(FailedToUpdateProductError(error));
+      case Failure<int>():
+      //  emit(FailedToUpdateProductError(error));
     }
   }
 
@@ -314,15 +314,14 @@ class HomeCubit extends Cubit<HomeState> {
     switch (result) {
       case Success<int>():
         await _refreshCart(); // badge drops by one product
-      case Failure<int>(:final error):
-        emit(FailedToUpdateProductError(error));
+      case Failure<int>():
+     //   emit(FailedToUpdateProductError(error));
     }
   }
 
   // ---------------- Navigation ----------------
 
-  void goToProductDetails(ProductEntity product) =>
-      emit(GoToProductDetails(product: product));
+  void goToProductDetails(ProductEntity product) => emit(GoToProductDetails(product: product));
 
   void gotToFavorites() => emit(GoToFavorites());
 
