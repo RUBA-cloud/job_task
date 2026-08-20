@@ -13,7 +13,7 @@ class Network extends QueuedInterceptor {
       ) async {
     final prefs = await SharedPreferences.getInstance();
 
-    final token = prefs.getString(SharedPrefs.token);
+    final token = prefs.getString(SharedPrefsKeys.token);
 
     options.headers[HttpHeaders.acceptHeader] =
         ApiConstants.acceptHeader;

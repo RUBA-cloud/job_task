@@ -27,7 +27,7 @@ late   HomeDrawerCubit _cubit;
       ),
       body: BlocBuilder<HomeDrawerCubit, MenuDrawerState>(
         builder: (context, state) {
-          if (state is OurBranchLoadingState) {
+          if (state is  AboutUsLoading ) {
             return const Center(
               child: CircularProgressIndicator(),
             );

@@ -4,6 +4,23 @@ import 'package:flutter/widgets.dart';
 
 class Assets {
   Assets._();
+
+  static const $AssetsCoreGen core = $AssetsCoreGen();
+}
+
+class $AssetsCoreGen {
+  const $AssetsCoreGen();
+
+  final $AssetsGetItGen getIt = const $AssetsGetItGen();
+}
+
+class $AssetsGetItGen {
+  const $AssetsGetItGen();
+
+  final String configureDependency =
+      'lib/core/get_it/configure_dependency.dart';
+  final String configureDependencyConfig =
+      'lib/core/get_it/configure_dependency.config.dart';
 }
 
 class AssetGenImage {

@@ -98,3 +98,5 @@ class ProfileImagePickFailed extends MenuDrawerState {
 /// ------------------------------
 
 class ProfileValidationChanged extends MenuDrawerState {}
+
+class ProfileLogout extends MenuDrawerState {}

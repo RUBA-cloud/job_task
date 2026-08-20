@@ -10,7 +10,7 @@ class HomeDrawer extends StatelessWidget {
     required this.onSettings,
     required this.onAbout,
     required this.onBranches,
-    required this.onLogout,
+    required this.onLogout, required this.onHomePage,
   });
 
   final VoidCallback onMyOrders;
@@ -18,6 +18,7 @@ class HomeDrawer extends StatelessWidget {
   final VoidCallback onAbout;
   final VoidCallback onBranches;
   final VoidCallback onLogout;
+  final VoidCallback onHomePage;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,7 @@ class HomeDrawer extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 35.r,
-                    backgroundColor: Colors.white,
+                    backgroundColor: AppColors.surface,
                     child: Icon(
                       Icons.person,
                       size: 40.sp,
@@ -51,7 +52,7 @@ class HomeDrawer extends StatelessWidget {
                   Text(
                     "Welcome",
                     style: TextStyle(
-                      color: Colors.white,
+                      color:  AppColors.surface,
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -60,7 +61,7 @@ class HomeDrawer extends StatelessWidget {
                   Text(
                     "Shopping App",
                     style: TextStyle(
-                      color: Colors.white70,
+                      color:  AppColors.surface,
                       fontSize: 14.sp,
                     ),
                   ),
@@ -69,7 +70,14 @@ class HomeDrawer extends StatelessWidget {
             ),
 
             SizedBox(height: 10.h),
-
+            _drawerItem(
+              icon: Icons.receipt_long_outlined,
+              title: "Home Page",
+              onTap: () {
+                Navigator.pop(context);
+                onMyOrders();
+              },
+            ),
             _drawerItem(
               icon: Icons.receipt_long_outlined,
               title: "My Orders",
@@ -112,7 +120,7 @@ class HomeDrawer extends StatelessWidget {
 
             _drawerItem(
               icon: Icons.logout,
-              iconColor: Colors.red,
+              iconColor: AppColors.redColor,
               textColor: Colors.red,
               title: "Logout",
               onTap: () {

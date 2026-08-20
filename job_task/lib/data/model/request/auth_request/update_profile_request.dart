@@ -1,14 +1,9 @@
-import 'dart:io';
-
-import 'package:dio/dio.dart';
-
 class UpdateProfileRequest {
   final String? name;
   final String? email;
   final String? street;
   final String? address;
   final String? phone;
-  final File? avatar;
   final String? avatarPath;
   final String? country;
   final String? city;
@@ -19,13 +14,12 @@ class UpdateProfileRequest {
     this.street,
     this.address,
     this.phone,
-    this.avatar,
     this.avatarPath,
     this.country,
     this.city,
   });
 
-  Future<FormData> toFormData() async {
+  Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
 
     if (name != null) {
@@ -60,13 +54,6 @@ class UpdateProfileRequest {
       data['city'] = city;
     }
 
-    if (avatar != null) {
-      data['avatar'] = await MultipartFile.fromFile(
-        avatar!.path,
-        filename: avatar!.path.split('/').last,
-      );
-    }
-
-    return FormData.fromMap(data);
+    return data;
   }
 }

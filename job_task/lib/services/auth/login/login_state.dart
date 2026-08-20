@@ -7,7 +7,7 @@ abstract class LoginState {}
 class LoginInitial extends LoginState {}
 
 class LoginLoading extends LoginState {}
-
+class UserNoLoggedIn extends LoginState {}
 class GoToRegister extends LoginState {}
 
 class GoToForgetPassword extends LoginState {}
@@ -36,7 +36,11 @@ class CheckEmailVerifiedLoading extends LoginState {
 }
 class CheckEmailVerifiedInitial extends LoginState {
 
+}class UserAlreadyLoggedIn extends LoginState {
+  final LoginEntity loginEntity;
+ UserAlreadyLoggedIn(this.loginEntity);
 }
+
 class CheckEmailVerifiedFailed extends LoginState {
 
   CheckEmailVerifiedFailed();

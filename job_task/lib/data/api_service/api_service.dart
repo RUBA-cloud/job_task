@@ -5,6 +5,7 @@ import 'package:job_task/data/model/request/auth_request/forgot_password_request
 import 'package:job_task/data/model/request/auth_request/login_request.dart';
 import 'package:job_task/data/model/request/auth_request/register_request.dart';
 import 'package:job_task/data/model/request/auth_request/update_profile_request.dart';
+import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
 import 'package:job_task/data/model/response/about_us_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/check_email_verified_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/forgot_password_entity.dart';
@@ -13,7 +14,8 @@ import 'package:job_task/data/model/response/auth_entity/register_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/update_profile_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/verify_email_entity.dart';
 import 'package:job_task/data/model/response/branch_entity.dart';
-import 'package:job_task/data/model/response/product_entity.dart';
+import 'package:job_task/data/model/response/category_entity.dart';
+import 'package:job_task/data/model/response/favorite_entity.dart';
 import 'package:retrofit/retrofit.dart';
 
 part 'api_service.g.dart';
@@ -24,8 +26,8 @@ abstract class ApiService {
   @factoryMethod
   factory ApiService(Dio dio) = _ApiService;
 
-  @GET(ApiConstants.products)
-  Future<List<ProductEntity>> getProducts();
+  @GET("categories")
+  Future<CategoryEntity> getProducts();
 
   @POST("auth/login")
   Future<LoginEntity> login(@Body()LoginRequest login);
@@ -47,6 +49,16 @@ abstract class ApiService {
 
   @POST('user/profile')
   Future<UpdateProfileEntity> updateProfile(@Body() UpdateProfileRequest  profileRequest);
+
+  /// Favoriotes
+  @POST('add-faviorate')
+  Future<FavoriteEntity> addToFav(@Body() AddToFavRequest  addToFave);
+  @GET('faviorate_list')
+  Future<List<FavoriteEntity>> getToFav();
+  @GET('remove-faviorate/{id}')
+  Future<FavoriteEntity> removeFromFav(@Body() AddToFavRequest  addToFave);
+
+
 
 
 

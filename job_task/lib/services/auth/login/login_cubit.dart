@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:job_task/core/constants/shard_prefes_keys.dart';
@@ -10,11 +12,16 @@ import 'package:job_task/data/model/response/auth_entity/login_entity.dart';
 import 'package:job_task/domain/use_cases/auth/check_if_email_is_verifed_use_case.dart';
 import 'package:job_task/domain/use_cases/auth/forgot_password_use_case.dart';
 import 'package:job_task/domain/use_cases/auth/login_use_case.dart';
+import 'package:job_task/domain/use_cases/shared_pref/get_shared_pref.dart';
 import 'package:job_task/domain/use_cases/shared_pref/save_shared_pref.dart';
 import 'package:job_task/services/auth/login/login_state.dart';
 
 class LoginCubit extends Cubit<LoginState> {
   LoginCubit() : super(LoginInitial());
+
+  // ============================================================
+  // USE CASES
+  // ============================================================
 
   final LoginUseCase loginUseCase = getIt<LoginUseCase>();
 
@@ -27,12 +34,131 @@ class LoginCubit extends Cubit<LoginState> {
   final SavePrefUseCase savePrefUseCase =
   getIt<SavePrefUseCase>();
 
+  final GetPrefUseCase getPrefUseCase =
+  getIt<GetPrefUseCase>();
+
   final LocationService locationService = LocationService();
 
-  static LoginCubit get(BuildContext context) =>
-      BlocProvider.of<LoginCubit>(context);
+  // ============================================================
+  // GET CUBIT
+  // ============================================================
+
+  static LoginCubit get(BuildContext context) {
+    return BlocProvider.of<LoginCubit>(context);
+  }
+
+  // ============================================================
+  // LOGIN ENTITY
+  // ============================================================
 
   LoginEntity? loginEntity;
+
+  // ============================================================
+  // CHECK IF USER IS ALREADY LOGGED IN
+  // ============================================================
+
+  Future<void> checkIfUserLoggedIn() async {
+    try {
+      debugPrint('Checking if user is already logged in...');
+
+      // ========================================================
+      // GET LOGIN STATUS
+      // ========================================================
+
+      final isLoggedIn = await getPrefUseCase.call(
+        SharedPrefsKeys.isLoggedIn,
+      );
+
+      debugPrint('isLoggedIn = $isLoggedIn');
+
+      // ========================================================
+      // USER IS NOT LOGGED IN
+      // ========================================================
+
+      if (isLoggedIn != 'true') {
+        loginEntity = null;
+
+        emit( UserNoLoggedIn() );
+
+        return;
+      }
+
+      // ========================================================
+      // GET COMPLETE LOGIN ENTITY JSON
+      // ========================================================
+
+      final savedLoginEntity = await getPrefUseCase.call(
+        SharedPrefsKeys.loginEntity,
+      );
+
+      debugPrint(
+        'savedLoginEntity = $savedLoginEntity',
+      );
+
+      // ========================================================
+      // CHECK IF LOGIN ENTITY EXISTS
+      // ========================================================
+
+      if (savedLoginEntity == null ||
+          savedLoginEntity.toString().isEmpty) {
+        debugPrint(
+          'Login entity was not found in SharedPreferences',
+        );
+
+        // Data is incomplete, so clear login status
+        await savePrefUseCase(
+          key: SharedPrefsKeys.isLoggedIn,
+          value: 'false',
+        );
+
+        loginEntity = null;
+
+        emit(UserNoLoggedIn());
+
+        return;
+      }
+
+      // ========================================================
+      // JSON STRING -> MAP
+      // ========================================================
+
+      final Map<String, dynamic> json =
+      jsonDecode(savedLoginEntity.toString());
+
+      // ========================================================
+      // MAP -> LOGIN ENTITY
+      // ========================================================
+
+      loginEntity = LoginEntity.fromJson(json);
+
+      // ========================================================
+      // USER IS ALREADY LOGGED IN
+      // ========================================================
+
+      emit(
+        UserAlreadyLoggedIn(
+          loginEntity!,
+        ),
+      );
+
+      debugPrint(
+        'User already logged in: ${loginEntity!.data.name}',
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'Check logged in error: $e',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      loginEntity = null;
+
+      // If saved data is corrupted, treat user as logged out.
+      emit(UserNoLoggedIn());
+    }
+  }
 
   // ============================================================
   // LOGIN
@@ -43,33 +169,62 @@ class LoginCubit extends Cubit<LoginState> {
   }) async {
     emit(LoginLoading());
 
-    final result = await loginUseCase.execute(loginRequest);
+    try {
+      final result = await loginUseCase.execute(
+        loginRequest,
+      );
 
-    switch (result) {
-      case Success(:final data):
-        loginEntity = data;
+      switch (result) {
+        case Success(:final data):
 
-        // IMPORTANT:
-        // Wait until token is saved before continuing.
-        await saveUserLogin(loginEntity!);
+        // ====================================================
+        // SAVE LOGIN ENTITY
+        // ====================================================
 
-        break;
+          loginEntity = data;
 
-      case Failure(:final error):
-        if (result.statusCode == 403) {
-          await checkEmailVerified(
-            loginRequest: loginRequest,
+          await saveUserLogin(
+            loginEntity!,
           );
-          return;
-        }
 
-        emit(
-          LoginFailed(
-            error?.message ?? 'Login failed',
-          ),
-        );
+          break;
 
-        break;
+        case Failure(:final error):
+
+        // ====================================================
+        // EMAIL NOT VERIFIED
+        // ====================================================
+
+          if (result.statusCode == 403) {
+            await checkEmailVerified(
+              loginRequest: loginRequest,
+            );
+
+            return;
+          }
+
+          emit(
+            LoginFailed(
+              error?.message ?? 'Login failed',
+            ),
+          );
+
+          break;
+      }
+    } catch (e, stackTrace) {
+      debugPrint(
+        'Login error: $e',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      emit(
+        LoginFailed(
+          e.toString(),
+        ),
+      );
     }
   }
 
@@ -77,55 +232,126 @@ class LoginCubit extends Cubit<LoginState> {
   // SAVE LOGIN DATA
   // ============================================================
 
-  Future<void> saveUserLogin(LoginEntity login) async {
+  Future<void> saveUserLogin(
+      LoginEntity login,
+      ) async {
     try {
-    // final location = await locationService.getCurrentLocation();
+      // ========================================================
+      // LOGIN ENTITY -> JSON STRING
+      // ========================================================
 
-      await savePrefUseCase(
-        key: SharedPrefs.userName,
-        value: login.data.name,
+      final String loginJson = jsonEncode(
+        login.toJson(),
       );
 
-    // rer
-      await savePrefUseCase(
-        key: SharedPrefs.email,
-        value: login.data.email,
+      debugPrint(
+        'Saving login entity: $loginJson',
       );
 
-      // Access token
+      // ========================================================
+      // SAVE COMPLETE LOGIN ENTITY
+      // ========================================================
+
       await savePrefUseCase(
-        key: SharedPrefs.token,
-        value: login.data.accessToken,
+        key: SharedPrefsKeys.loginEntity,
+        value: loginJson,
       );
 
+      // ========================================================
+      // SAVE LOGIN STATUS
+      // ========================================================
 
-      //
-      // await savePrefUseCase(
-      //   key: SharedPrefs.country,
-      //   value: location['country'] ?? '',
-      // );
-      //
-      // await savePrefUseCase(
-      //   key: SharedPrefs.city,
-      //   value: location['city'] ?? '',
-      // );
-      //
-      // await savePrefUseCase(
-      //   key: SharedPrefs.latitude,
-      //   value: location['latitude'].toString(),
-      // );
+      await savePrefUseCase(
+        key: SharedPrefsKeys.isLoggedIn,
+        value: 'true',
+      );
 
+      // ========================================================
+      // SAVE INDIVIDUAL VALUES
+      // ========================================================
 
+      await Future.wait([
+        savePrefUseCase(
+          key: SharedPrefsKeys.userName,
+          value: login.data.name,
+        ),
 
-      emit(LoginSuccessful(login));
-    } catch (e) {
-      debugPrint('Save login data error: $e');
+        savePrefUseCase(
+          key: SharedPrefsKeys.gallery,
+          value: login.data.avatarPath?.toString() ?? '',
+        ),
+
+        savePrefUseCase(
+          key: SharedPrefsKeys.email,
+          value: login.data.email,
+        ),
+
+        savePrefUseCase(
+          key: SharedPrefsKeys.phone,
+          value: login.data.phone?.toString() ?? '',
+        ),
+
+        savePrefUseCase(
+          key: SharedPrefsKeys.address,
+          value: login.data.address?.toString() ?? '',
+        ),
+
+        savePrefUseCase(
+          key: SharedPrefsKeys.token,
+          value: login.data.accessToken,
+        ),
+      ]);
+
+      // ========================================================
+      // LOGIN SUCCESS
+      // ========================================================
 
       emit(
-        LoginFailed('Failed to save login information'),
+        LoginSuccessful(login),
+      );
+    } catch (e, stackTrace) {
+      debugPrint(
+        'Save login data error: $e',
+      );
+
+      debugPrintStack(
+        stackTrace: stackTrace,
+      );
+
+      emit(
+        LoginFailed(
+          'Failed to save login information',
+        ),
       );
     }
   }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  Future<void> logout() async {
+    try {
+      await savePrefUseCase(
+        key: SharedPrefsKeys.isLoggedIn,
+        value: 'false',
+      );
+
+      await savePrefUseCase(
+        key: SharedPrefsKeys.loginEntity,
+        value: '',
+      );
+
+      loginEntity = null;
+
+      emit(UserNoLoggedIn());
+    } catch (e) {
+      debugPrint(
+        'Logout error: $e',
+      );
+    }
+  }
+
   // ============================================================
   // CHECK EMAIL VERIFIED
   // ============================================================
@@ -133,27 +359,35 @@ class LoginCubit extends Cubit<LoginState> {
   Future<void> checkEmailVerified({
     required LoginRequest loginRequest,
   }) async {
-    emit(CheckEmailVerifiedInitial());
-
-    final result =
-    await checkEmailVerifiedUseCase.execute(
-      SendEmailRequest(
-        email: loginRequest.email,
-      ),
+    emit(
+      CheckEmailVerifiedInitial(),
     );
 
-    switch (result) {
-      case Success(:final data):
-        emit(
-          CheckEmailVerifiedSuccessful(data),
-        );
-        break;
+    try {
+      final result =
+      await checkEmailVerifiedUseCase.execute(
+        SendEmailRequest(
+          email: loginRequest.email,
+        ),
+      );
 
-      case Failure():
-        emit(
-          CheckEmailVerifiedFailed(),
-        );
-        break;
+      switch (result) {
+        case Success(:final data):
+          emit(
+            CheckEmailVerifiedSuccessful(data),
+          );
+          break;
+
+        case Failure():
+          emit(
+            CheckEmailVerifiedFailed(),
+          );
+          break;
+      }
+    } catch (e) {
+      emit(
+        CheckEmailVerifiedFailed(),
+      );
     }
   }
 
@@ -167,7 +401,9 @@ class LoginCubit extends Cubit<LoginState> {
     hidePassword = !hidePassword;
 
     emit(
-      PasswordVisibilityChanged(hidePassword),
+      PasswordVisibilityChanged(
+        hidePassword,
+      ),
     );
   }
 
@@ -178,27 +414,38 @@ class LoginCubit extends Cubit<LoginState> {
   Future<void> submitForgotPassword(
       SendEmailRequest forgotPasswordRequest,
       ) async {
-    emit(ForgetPasswordLoading());
-
-    final result =
-    await forgotPasswordUseCase.execute(
-      forgotPasswordRequest,
+    emit(
+      ForgetPasswordLoading(),
     );
 
-    switch (result) {
-      case Success(:final data):
-        emit(
-          ForgetPasswordLoaded(data),
-        );
-        break;
+    try {
+      final result =
+      await forgotPasswordUseCase.execute(
+        forgotPasswordRequest,
+      );
 
-      case Failure():
-        emit(
-          LoginFailed(
-            result.error?.message ?? 'Something went wrong',
-          ),
-        );
-        break;
+      switch (result) {
+        case Success(:final data):
+          emit(
+            ForgetPasswordLoaded(data),
+          );
+          break;
+
+        case Failure():
+          emit(
+            ForgetPasswordFailed(
+              result.error?.message ??
+                  'Something went wrong',
+            ),
+          );
+          break;
+      }
+    } catch (e) {
+      emit(
+        ForgetPasswordFailed(
+          e.toString(),
+        ),
+      );
     }
   }
 
@@ -207,10 +454,14 @@ class LoginCubit extends Cubit<LoginState> {
   // ============================================================
 
   void goToPassword() {
-    emit(GoToForgetPassword());
+    emit(
+      GoToForgetPassword(),
+    );
   }
 
   void goToRegister() {
-    emit(GoToRegister());
+    emit(
+      GoToRegister(),
+    );
   }
 }

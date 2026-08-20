@@ -1,46 +1,69 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:injectable/injectable.dart';
+
 import 'package:job_task/core/constants/shard_prefes_keys.dart';
 import 'package:job_task/core/di/api_result.dart';
 import 'package:job_task/core/get_it/configure_dependency.dart';
+
 import 'package:job_task/data/model/request/auth_request/update_profile_request.dart';
 import 'package:job_task/data/model/response/about_us_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/update_profile_entity.dart';
 import 'package:job_task/data/model/response/branch_entity.dart';
+
 import 'package:job_task/domain/use_cases/about_us/about_us_use_case.dart';
 import 'package:job_task/domain/use_cases/auth/update_profile_use_case.dart';
 import 'package:job_task/domain/use_cases/our_branches_use_case.dart';
 import 'package:job_task/domain/use_cases/shared_pref/get_shared_pref.dart';
+import 'package:job_task/domain/use_cases/shared_pref/save_shared_pref.dart';
+
 import 'package:job_task/services/home_drawer/home_drawer_state.dart';
+
+import '../../domain/use_cases/shared_pref/remove_shared_pef_use_case.dart';
 
 class HomeDrawerCubit extends Cubit<MenuDrawerState> {
   HomeDrawerCubit() : super(AboutUsInitial());
-  static HomeDrawerCubit get(BuildContext context) => BlocProvider.of<HomeDrawerCubit>(context);
-  // ---------------------------------------------------------
-  // Use Cases
-  // ---------------------------------------------------------
+
+  static HomeDrawerCubit get(BuildContext context) {
+    return BlocProvider.of<HomeDrawerCubit>(context);
+  }
+
+  // ============================================================
+  // USE CASES
+  // ============================================================
 
   final AboutUsUseCase _aboutUsUseCase = getIt<AboutUsUseCase>();
-  final OurBranchUseCase _ourBranches = getIt<OurBranchUseCase>();
-  final UpdateProfileUseCase _profileUseCase = getIt<UpdateProfileUseCase>();
-  final GetPrefUseCase _getPrefUseCase =  getIt<GetPrefUseCase>();
-  late UpdateProfileEntity updateProfileEntity;
 
+  final OurBranchUseCase _ourBranches =
+  getIt<OurBranchUseCase>();
 
-  // ---------------------------------------------------------
-  // Data
-  // ---------------------------------------------------------
+  final UpdateProfileUseCase _profileUseCase =
+  getIt<UpdateProfileUseCase>();
+
+  final GetPrefUseCase _getPrefUseCase =
+  getIt<GetPrefUseCase>();
+
+  final SavePrefUseCase _savePrefUseCase =
+  getIt<SavePrefUseCase>();
+
+  final RemovePrefUseCase _removePrefUseCase = getIt<RemovePrefUseCase>();
+
+  // ============================================================
+  // DATA
+  // ============================================================
 
   AboutUsEntity? aboutUsEntity;
+
   BranchEntity? branchEntity;
 
-  // ---------------------------------------------------------
-  // Profile Controllers
-  // ---------------------------------------------------------
+  UpdateProfileEntity? updateProfileEntity;
+
+  // ============================================================
+  // PROFILE CONTROLLERS
+  // ============================================================
 
   final TextEditingController nameController =
   TextEditingController();
@@ -58,9 +81,9 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
 
   File? profileImage;
 
-  // ---------------------------------------------------------
-  // Navigation
-  // ---------------------------------------------------------
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
 
   void goToAboutUs() {
     emit(GoToAboutUs());
@@ -78,28 +101,50 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     emit(GoToSettings());
   }
 
-  // ---------------------------------------------------------
-  // About Us
-  // ---------------------------------------------------------
+  // ============================================================
+  // LOAD PROFILE
+  // ============================================================
 
   Future<void> loadProfile() async {
-    final name = await _getPrefUseCase.call(SharedPrefs.userName);
-    final email = await _getPrefUseCase.call(SharedPrefs.email);
-    final phone = await _getPrefUseCase.call(SharedPrefs.phone);
-    final imagePath = await _getPrefUseCase.call(SharedPrefs.gallery);
+    try {
+      final results = await Future.wait<String?>([
+        _getPrefUseCase.call(SharedPrefsKeys.userName),
+        _getPrefUseCase.call(SharedPrefsKeys.email),
+        _getPrefUseCase.call(SharedPrefsKeys.phone),
+        _getPrefUseCase.call(SharedPrefsKeys.gallery),
+        _getPrefUseCase.call(SharedPrefsKeys.address),
 
-    nameController.text = name ?? '';
-    emailController.text = email ?? '';
-    phoneController.text = phone ?? '';
+      ]);
 
-    // if (imagePath != null && imagePath.isNotEmpty) {
-    //   profileImage = File(imagePath);
-    // } else {
-    //   profileImage = null;
-    // }
+      nameController.text = results[0] ?? '';
+      emailController.text = results[1] ?? '';
+      phoneController.text = results[2] ?? '';
+      addressController.text =results[4]??"";
 
-    emit(ProfileValidationChanged());
+
+      final imagePath = results[3];
+
+      if (imagePath != null && imagePath.isNotEmpty) {
+        final file = File(imagePath);
+
+        if (await file.exists()) {
+          profileImage = file;
+        } else {
+          profileImage = null;
+        }
+      } else {
+        profileImage = null;
+      }
+
+      emit(ProfileValidationChanged());
+    } catch (e) {
+      emit(ProfileFailed(e.toString()));
+    }
   }
+
+  // ============================================================
+  // ABOUT US
+  // ============================================================
 
   Future<void> loadAboutUs() async {
     emit(AboutUsLoading());
@@ -111,7 +156,6 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
         case Success<AboutUsEntity>(data: final data):
           aboutUsEntity = data;
           emit(AboutUsLoaded(data));
-          break;
 
         case Failure<AboutUsEntity>(error: final error):
           emit(
@@ -119,20 +163,17 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
               error?.message ?? 'Unable to load about us',
             ),
           );
-          break;
       }
     } catch (e) {
       emit(
-        AboutUsFailed(
-          e.toString(),
-        ),
+        AboutUsFailed(e.toString()),
       );
     }
   }
 
-  // ---------------------------------------------------------
-  // Branches
-  // ---------------------------------------------------------
+  // ============================================================
+  // BRANCHES
+  // ============================================================
 
   Future<void> loadBranches() async {
     emit(OurBranchLoadingState());
@@ -143,10 +184,10 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
       switch (result) {
         case Success<BranchEntity>(data: final data):
           branchEntity = data;
+
           emit(
             OurBranchLoadedState(data),
           );
-          break;
 
         case Failure<BranchEntity>(error: final error):
           emit(
@@ -154,7 +195,6 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
               error?.message ?? 'Unable to load branches',
             ),
           );
-          break;
       }
     } catch (e) {
       emit(
@@ -165,9 +205,9 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     }
   }
 
-  // =========================================================
+  // ============================================================
   // PROFILE VALIDATION
-  // =========================================================
+  // ============================================================
 
   String? validateName(String? value) {
     final name = value?.trim() ?? '';
@@ -257,9 +297,9 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     return true;
   }
 
-  // =========================================================
+  // ============================================================
   // IMAGE PICKER
-  // =========================================================
+  // ============================================================
 
   Future<void> pickProfileImage() async {
     try {
@@ -291,9 +331,9 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     }
   }
 
-  // =========================================================
+  // ============================================================
   // REMOVE IMAGE
-  // =========================================================
+  // ============================================================
 
   void removeProfileImage() {
     profileImage = null;
@@ -303,9 +343,9 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     );
   }
 
-  // =========================================================
+  // ============================================================
   // SET PROFILE DATA
-  // =========================================================
+  // ============================================================
 
   void setProfileData({
     String? name,
@@ -323,9 +363,61 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     );
   }
 
-  // =========================================================
+  // ============================================================
+  // PREPARE PROFILE REQUEST IN ISOLATE
+  // ============================================================
+
+  Future<UpdateProfileRequest> _prepareProfileRequest() async {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final phone = phoneController.text.trim();
+    final address = addressController.text.trim();
+
+    final avatarPath = profileImage?.path;
+
+    final requestData = await Isolate.run(
+          () => _prepareRequestData(
+        name: name,
+        email: email,
+        phone: phone,
+        address: address,
+        avatarPath: avatarPath,
+      ),
+    );
+
+    return UpdateProfileRequest(
+      name: requestData['name'],
+      email: requestData['email'],
+      phone: requestData['phone'],
+      address: requestData['address'],
+
+      avatarPath: requestData['avatar_path'],
+    );
+  }
+
+  // ============================================================
+  // ISOLATE FUNCTION
+  // ============================================================
+
+  static Map<String, String?> _prepareRequestData({
+    required String name,
+    required String email,
+    required String phone,
+    required String address,
+    String? avatarPath,
+  }) {
+    return {
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'address': address,
+      'avatar_path': avatarPath,
+    };
+  }
+
+  // ============================================================
   // UPDATE PROFILE
-  // =========================================================
+  // ============================================================
 
   Future<void> updateProfile() async {
     if (!validateProfile()) {
@@ -335,41 +427,34 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     emit(ProfileUpdating());
 
     try {
+      // Prepare immutable request data in isolate.
+      final request = await _prepareProfileRequest();
 
-        final result = await _profileUseCase.execute(UpdateProfileRequest(
-          name: nameController.text.trim(),
-          email: emailController.text.trim(),
-          address: addressController.text.trim(),
-          phone: phoneController.text.trim(),));
-        switch (result) {
-          case Success<UpdateProfileEntity>(data: final data):
-            updateProfileEntity = data;
-
-            emit(
-              ProfileUpdated(
-                'Profile updated successfully',
-              ),
-            );
-            break;
-
-          case Failure<UpdateProfileEntity>(error: final error):
-            emit(
-              ProfileFailed(
-                error?.message ?? 'Unable to update profile',
-              ),
-            );
-            break;
-        }
-
-
-
-      // TODO: Replace with your real API call.
-
-      emit(
-        ProfileUpdated(
-          'Profile updated successfully',
-        ),
+      // API call remains outside isolate.
+      final result = await _profileUseCase.execute(
+        request,
       );
+
+      switch (result) {
+        case Success<UpdateProfileEntity>(data: final data):
+          updateProfileEntity = data;
+
+          // IMPORTANT: await this.
+          await saveProfileUpdate(data);
+
+          emit(
+            ProfileUpdated(
+              'Profile updated successfully',
+            ),
+          );
+
+        case Failure<UpdateProfileEntity>(error: final error):
+          emit(
+            ProfileFailed(
+              error?.message ?? 'Unable to update profile',
+            ),
+          );
+      }
     } catch (e) {
       emit(
         ProfileFailed(
@@ -379,9 +464,59 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     }
   }
 
-  // =========================================================
-  // Dispose
-  // =========================================================
+  // ============================================================
+  // SAVE PROFILE UPDATE
+  // ============================================================
+
+  Future<void> saveProfileUpdate(
+      UpdateProfileEntity entity,
+      ) async {
+    final user = entity.user;
+
+    nameController.text = user.name;
+    emailController.text = user.email;
+    phoneController.text = user.phone;
+    addressController.text =user.address;
+
+    // DO NOT do:
+    //
+    // profileImage?.path = user.avatarPath;
+    //
+    // File.path is read-only.
+
+    if (user.avatarPath.isNotEmpty) {
+      profileImage = File(user.avatarPath);
+    } else {
+      profileImage = null;
+    }
+
+    await Future.wait([
+      _savePrefUseCase.call(
+        key: SharedPrefsKeys.userName,
+        value: user.name,
+      ),
+      _savePrefUseCase.call(
+        key: SharedPrefsKeys.email,
+        value: user.email,
+      ),
+      _savePrefUseCase.call(
+        key: SharedPrefsKeys.phone,
+        value: user.phone,
+      ),
+      _savePrefUseCase.call(
+        key: SharedPrefsKeys.address,
+        value: user.address
+      ),
+      _savePrefUseCase.call(
+        key: SharedPrefsKeys.gallery,
+        value: user.avatarPath,
+      ),
+    ]);
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   Future<void> close() {
@@ -391,5 +526,10 @@ class HomeDrawerCubit extends Cubit<MenuDrawerState> {
     addressController.dispose();
 
     return super.close();
+  }
+
+  void logout()async{
+    _removePrefUseCase.call();
+    emit(ProfileLogout());
   }
 }

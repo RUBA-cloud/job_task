@@ -7,8 +7,8 @@ import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
 import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/category_entity.dart';
 import 'package:job_task/data/model/response/favorite_entity.dart';
-import 'package:job_task/data/model/response/product_entity.dart';
 import 'package:job_task/domain/repository/home_page_repo.dart';
 
 @Injectable(as: HomePageRepo)
@@ -19,7 +19,7 @@ class HomePageRepoImp implements HomePageRepo {
   const HomePageRepoImp(this._apiService, this._db);
 
   @override
-  Future<ApiResult<List<ProductEntity>>> getProducts() async {
+  Future<ApiResult<CategoryEntity>> getProducts() async {
     try {
       final res = await _apiService.getProducts();
       return Success(data: res);

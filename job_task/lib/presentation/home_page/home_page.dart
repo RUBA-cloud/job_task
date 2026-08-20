@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
 import 'package:job_task/core/theme/app_colors.dart';
 import 'package:job_task/core/utility/utility.dart';
-import 'package:job_task/presentation/cart/cart_page.dart';
-import 'package:job_task/presentation/faviorate/favorites_page.dart';
+import 'package:job_task/presentation/auth/login_screen.dart';
 import 'package:job_task/presentation/home_page/product_details.dart';
 import 'package:job_task/presentation/home_page_menu/about_us_page.dart';
 import 'package:job_task/presentation/home_page_menu/our_branch_page.dart';
 import 'package:job_task/presentation/home_page_menu/profile_page.dart';
 import 'package:job_task/presentation/widget/home_drawer.dart';
 import 'package:job_task/presentation/widget/product_card.dart';
+import 'package:job_task/services/auth/login/login_cubit.dart';
 import 'package:job_task/services/home_drawer/home_drawer_cubit.dart';
 import 'package:job_task/services/home_page/home_cubit.dart';
 import 'package:job_task/services/home_page/home_state.dart';
@@ -53,6 +52,15 @@ class _HomePageState extends State<HomePage> with Utility {
 
           drawer: HomeDrawer(
             onMyOrders: () {},
+            onHomePage: (){
+              navigateTo(
+                context,
+                BlocProvider(
+                    create: (_) => HomeCubit()..loadProducts(),
+                    child: HomePage()
+                ),
+              );},
+
 
             onSettings: () { navigateTo(
               context,
@@ -82,7 +90,8 @@ class _HomePageState extends State<HomePage> with Utility {
               );
             },
 
-            onLogout: () {},
+            onLogout: () { homeCubit.logout();
+              },
           ),
 
           backgroundColor: AppColors.surface,
@@ -147,35 +156,46 @@ class _HomePageState extends State<HomePage> with Utility {
 
           body: BlocListener<HomeCubit, HomeState>(
             listener: (context, state) {
+              if(state is ProfileLogout){ navigateTo(
+                context,
+                BlocProvider(
+                  create:(c)=> LoginCubit(),
+
+                  child: LoginScreen(),
+                ),
+              );}
               if (state is GoToProductDetails) {
+
+
+
                 navigateTo(
                   context,
                   BlocProvider.value(
                     value: homeCubit,
-                    child: ProductDetailsPage(product: state.product),
+                    child: ProductDetailsPage(product: state.productsEntity),
                   ),
                 );
               } else if (state is GoToCarts) {
-                navigateTo(
-                  context,
-                  BlocProvider.value(value: homeCubit, child: const CartPage()),
-                );
+                // navigateTo(
+                //   context,
+                //   BlocProvider.value(value: homeCubit, child: const CartPage()),
+                // );
               } else if (state is GoToFavorites) {
-                navigateTo(
-                  context,
-                  BlocProvider.value(
-                    value: homeCubit,
-                    child: const FavoritesPage(),
-                  ),
-                );
+                // navigateTo(
+                //   context,
+                //   BlocProvider.value(
+                //     value: homeCubit,
+                //     child: const FavoritesPage(),
+                //   ),
+                // );
               } else if (state is GoToFavorites) {
-                navigateTo(
-                  context,
-                  BlocProvider.value(
-                    value: homeCubit,
-                    child: const FavoritesPage(),
-                  ),
-                );
+                // navigateTo(
+                //   context,
+                //   BlocProvider.value(
+                //     value: homeCubit,
+                //     child: const FavoritesPage(),
+                //   ),
+              //  );
               }
               if (state is FailedToAddedProductError) {
                 showSnack(context, state.error, AppColors.accent);
@@ -258,13 +278,13 @@ class _HomePageState extends State<HomePage> with Utility {
                   },
 
                   onCartTap: () {
-                    homeCubit.addToCart(product);
+                 //   homeCubit.addToCart(product);
                   },
 
-                  isFavorite: state.favoriteIds.contains(product.id),
+                  isFavorite: false,
 
                   onFavoriteTap: () {
-                    homeCubit.toggleFavorite(product.id);
+                   // homeCubit.toggleFavorite(product.id);
                   },
                 );
               }, childCount: state.products.length),

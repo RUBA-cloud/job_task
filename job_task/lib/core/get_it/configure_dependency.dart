@@ -4,15 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'configure_dependency.config.dart';
 
-
 final getIt = GetIt.instance;
 
 @InjectableInit()
-void configureDependencies() => getIt.init();
+Future<void> configureDependencies() async {
+  await getIt.init();
+}
 
 @module
-abstract class RegisterModule {
+abstract class SharedPreferencesModule {
   @preResolve
-  Future<SharedPreferences> get prefs =>
+  Future<SharedPreferences> get sharedPreferences =>
       SharedPreferences.getInstance();
 }

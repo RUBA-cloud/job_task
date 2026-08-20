@@ -1,367 +1,1037 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:injectable/injectable.dart';
-import 'package:job_task/core/di/api_result.dart' show Success, Failure;
+
+import 'package:job_task/core/di/api_result.dart';
 import 'package:job_task/core/get_it/configure_dependency.dart';
+
 import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
-import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
 
 import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/category_entity.dart';
 import 'package:job_task/data/model/response/favorite_entity.dart';
-import 'package:job_task/data/model/response/product_entity.dart';
+
 import 'package:job_task/domain/use_cases/cart/add_cart_to_product_use_case.dart';
 import 'package:job_task/domain/use_cases/cart/check_product_in_cart_use_case.dart';
 import 'package:job_task/domain/use_cases/cart/get_cart_use_case.dart';
 import 'package:job_task/domain/use_cases/cart/remove_product_from_cart_use_case.dart';
 import 'package:job_task/domain/use_cases/cart/update_cart_item_use_case.dart';
+
 import 'package:job_task/domain/use_cases/faviorate/add_product_fav_use_case.dart';
 import 'package:job_task/domain/use_cases/faviorate/check_product_in_fav_use_case.dart';
 import 'package:job_task/domain/use_cases/faviorate/get_fav_use_case.dart';
 import 'package:job_task/domain/use_cases/faviorate/remove_product_from_fav_use_case.dart';
+
 import 'package:job_task/domain/use_cases/get_product_use_case.dart';
+import 'package:job_task/domain/use_cases/shared_pref/remove_shared_pef_use_case.dart';
+
 import 'package:job_task/services/home_page/home_state.dart';
 
-@injectable
 class HomeCubit extends Cubit<HomeState> {
   HomeCubit() : super(GetHomeInitialState());
 
-  final GetProductUseCase getProductUseCase = getIt<GetProductUseCase>();
-  final GetCartUseCase getCartUseCase = getIt<GetCartUseCase>();
-  final AddCartToProductUseCase addCartItemUseCase =
-  getIt<AddCartToProductUseCase>();
-  final UpdateCartItemUseCase updateCartItemUseCase =
-  getIt<UpdateCartItemUseCase>();
-  final RemoveCartItemUseCase removeCartItemUseCase =
-  getIt<RemoveCartItemUseCase>();
+  static HomeCubit get(BuildContext context) {
+    return BlocProvider.of<HomeCubit>(context);
+  }
+
+  // ============================================================
+  // USE CASES
+  // ============================================================
+
+  final GetProductUseCase getProductUseCase = getIt();
+
+  final GetCartUseCase getCartUseCase = getIt();
+
+  final AddCartToProductUseCase addCartItemUseCase = getIt();
+
+  final UpdateCartItemUseCase updateCartItemUseCase = getIt();
+
+  final RemoveCartItemUseCase removeCartItemUseCase = getIt();
+
   final CheckProductInCartUseCase checkProductInCartUseCase =
-  getIt<CheckProductInCartUseCase>();
+  getIt();
 
-  final GetFavUseCase getFavUseCase = getIt<GetFavUseCase>();
+  final GetFavUseCase getFavUseCase = getIt();
+
   final AddProductToFavUseCase addProductToFavUseCase =
-  getIt<AddProductToFavUseCase>();
+  getIt();
+
   final RemoveProductFromFavUseCase removeProductFromFavUseCase =
-  getIt<RemoveProductFromFavUseCase>();
+  getIt();
+
   final CheckProductInFavUseCase checkProductInFavUseCase =
-  getIt<CheckProductInFavUseCase>();
+  getIt();
 
-  static HomeCubit get(BuildContext context) =>
-      BlocProvider.of<HomeCubit>(context);
+  final RemovePrefUseCase _removePrefUseCase = getIt();
 
-  List<ProductEntity> _allProducts = [];
+  // ============================================================
+  // HOME DATA
+  // ============================================================
+
+  CategoryEntity? _categories;
+
+  List<CategoryDataDataProductsEntity> _allProducts = [];
+
   List<CartEntity> _cart = [];
+
   List<FavoriteEntity> _favorites = [];
 
+  // ============================================================
+  // FILTER DATA
+  // ============================================================
+
   String _searchQuery = '';
+
   String _selectedCategory = 'All';
 
-  /// Derived from the DB-backed favorites list — used by the home grid hearts.
-  Set<int> get _favoriteIds => _favorites.map((f) => f.productId).toSet();
+  // ============================================================
+  // PRODUCT DETAILS DATA
+  // ============================================================
 
-  /// True if this product already has a row in the cart (local snapshot).
-  bool isProductInCart(int productId) =>
-      _cart.any((c) => c.productId == productId);
+  CategoryDataDataProductsEntity? _selectedProduct;
 
-  bool isProductFavorite(int productId) => _favoriteIds.contains(productId);
+  int _selectedImage = 0;
 
-  /// Badge count = number of DISTINCT products in the cart.
-  int get cartCount => _cart.length;
+  int _selectedColor = 0;
 
-  /// Favorites badge — decrements automatically because it reads _favorites,
-  /// which removeFavorite refreshes from the DB before re-emitting states.
-  int get favoriteCount => _favorites.length;
+  int _selectedSize = 0;
 
-  double get cartTotal =>
-      _cart.fold(0.0, (sum, c) => sum + c.price * c.quantity);
+  int _quantity = 1;
 
-  // ---------------- Products ----------------
+  Set<int> _selectedAdditions = {};
 
-  Future<void> loadProducts() async {
-    emit(GetHomeLoadingState());
+  // ============================================================
+  // HOME GETTERS
+  // ============================================================
 
-    // Start products (network), cart, and favorites (local DB) together.
-    final productFuture = getProductUseCase.execute();
-    final cartFuture = getCartUseCase.execute();
-    final favFuture = getFavUseCase.execute();
-
-    // Cart & favorites are best-effort — populate on success, ignore failure.
-    final cartResult = await cartFuture;
-    if (cartResult case Success<List<CartEntity>>(:final data)) {
-      _cart = List.of(data);
-    }
-    final favResult = await favFuture;
-    if (favResult case Success<List<FavoriteEntity>>(:final data)) {
-      _favorites = List.of(data);
-    }
-
-    final productResult = await productFuture;
-    switch (productResult) {
-      case Success<List<ProductEntity>>(:final data):
-        _allProducts = data;
-        _emitLoaded(); // badge + in-cart + favorite flags reflect the DB
-      case Failure<List<ProductEntity>>():
-        emit(GetHomeFailed(''));
-    }
+  Set<int> get favoriteIds {
+    return _favorites
+        .map(
+          (item) => item?.productId,
+    )
+        .toSet();
   }
 
-  void search(String query) {
-    _searchQuery = query;
-    _emitLoaded();
-  }
-
-  void selectCategory(String category) {
-    _selectedCategory = category;
-    _emitLoaded();
-  }
-
-  // ---------------- Favorites ----------------
-
-  /// Reloads favorites into _favorites WITHOUT emitting favorites states.
-  Future<void> _loadFavData() async {
-    final result = await getFavUseCase.execute();
-    if (result case Success<List<FavoriteEntity>>(:final data)) {
-      _favorites = List.of(data);
-    }
-  }
-
-  /// Heart tap on the home grid / details page. Uses CheckProductInFavUseCase
-  /// to decide whether to add or remove, so the DB is the source of truth.
-  Future<void> toggleFavorite(int productId) async {
-    final product = findLoadedProduct(productId);
-    if (product == null) return;
-
-    // Ask the DB whether it's already a favorite; fall back to the local
-    // snapshot if the check itself fails.
-    var isFav = _favoriteIds.contains(productId);
-    final checkResult = await checkProductInFavUseCase.execute(productId);
-    if (checkResult case Success<bool>(:final data)) {
-      isFav = data;
-    }
-
-    // NOTE: call the use case directly here (not removeFavorite) so `result`
-    // is a Success/Failure the switch below can match on.
-    final result = isFav
-        ? await removeProductFromFavUseCase.execute(productId)
-        : await addProductToFavUseCase.execute(
-      AddToFavRequest(
-        productId: product.id,
-        name: product.title,
-        image: product.image,
-        price: product.price.toString(),
-        value: 0,
-      ),
+  bool isProductInCart(int productId) {
+    return _cart.any(
+          (item) => item.productId == productId,
     );
-
-    switch (result) {
-      case Success<int>():
-        await _loadFavData(); // hearts + favorite badge reflect the DB
-        _emitLoaded();
-      case Failure<int>():
-        // emit(FailedToUpdateFavoriteError(result.error.response.statusMessage.toString()));
-        // _emitLoaded();
-    }
   }
 
-  /// Favorites page: load + emit favorites states.
-  Future<void> loadFavorites() async {
-    emit(FavoritesLoadingState());
-    await _refreshFavorites();
+  bool isProductFavorite(int productId) {
+    return favoriteIds.contains(productId);
   }
 
-  Future<void> _refreshFavorites() async {
-    final result = await getFavUseCase.execute();
-    switch (result) {
-      case Success<List<FavoriteEntity>>(:final data):
-        _favorites = List.of(data);
-        emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-      case Failure<List<FavoriteEntity>>():
-        emit(FavoritesFailed());
-    }
+  int get cartCount {
+    return _cart.length;
   }
 
-  Future<void> removeFavorite(int id) async {
-    final result = await removeProductFromFavUseCase.execute(id);
-    switch (result) {
-      case Success<int>():
-        await _refreshFavorites(); // list rebuild + _favorites.length - 1
-        _emitLoaded(); // badge decrement + gray heart on the grid
-      case Failure<int>():
-        // emit(FailedToUpdateFavoriteError(error));
-        emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-    }
+  int get favoriteCount {
+    return _favorites.length;
   }
 
-  Future<void> addFavoriteToCart(FavoriteEntity item) async {
-    final checkResult = await checkProductInCartUseCase.execute(item.productId);
-    if (checkResult case Success<bool>(data: true)) {
-      emit(ProductAlreadyInCart(item.name));
-      emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-      return;
-    }
-
-    final result = await addCartItemUseCase.execute(
-      AddProductToCartRequest(
-        productId: item.productId,
-        quantity: 1,
-        name: item.name,
-        image: item.image,
-        price: item.price.toString(),
-        value: item.value,
-      ),
+  double get cartTotal {
+    return _cart.fold(
+      0.0,
+          (sum, item) {
+        return sum + (item.price * item.quantity);
+      },
     );
-
-    switch (result) {
-      case Success<int>():
-        await _loadCartData(); // badge +1
-        emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
-        emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-      case Failure<int>():
-        //emit(FailedToAddedProductError(error));
-        emit(FavoritesLoadedState(List.unmodifiable(_favorites)));
-    }
   }
 
-  Future<void> _loadCartData() async {
-    final result = await getCartUseCase.execute();
-    if (result case Success<List<CartEntity>>(:final data)) {
-      _cart = List.of(data);
-    }
+  // ============================================================
+  // PRODUCT DETAILS GETTERS
+  // ============================================================
+
+  CategoryDataDataProductsEntity? get selectedProduct {
+    return _selectedProduct;
   }
 
-  Future<void> syncCart() async {
-    await _loadCartData();
-    _emitLoaded();
+  int get selectedImage {
+    return _selectedImage;
   }
-  Future<void> addToCart(ProductEntity product) async {
-    var alreadyInCart = isProductInCart(product.id); // fallback
-    final checkResult = await checkProductInCartUseCase.execute(product.id);
-    if (checkResult case Success<bool>(:final data)) {
-      alreadyInCart = data;
-    }
 
-    if (alreadyInCart) {
-      emit(ProductAlreadyInCart(product.title));
-      _emitLoaded(); // keep the grid on screen after the transient state
-      return;
-    }
+  int get selectedColor {
+    return _selectedColor;
+  }
 
-    emit(AddProductToCartLoading());
-    final request = AddProductToCartRequest(
-      productId: product.id,
-      quantity: 1,
-      name: product.title,
-      image: product.image,
-      price: product.price.toString(),
-      value: 0,
+  int get selectedSize {
+    return _selectedSize;
+  }
+
+  int get quantity {
+    return _quantity;
+  }
+
+  Set<int> get selectedAdditions {
+    return Set.unmodifiable(
+      _selectedAdditions,
     );
-
-    final result = await addCartItemUseCase.execute(request);
-    switch (result) {
-      case Success<int>():
-        await _loadCartData(); // refresh so the badge count updates (+1 product)
-        emit(AddedProductSuccessToCart(List.unmodifiable(_cart)));
-        _emitLoaded();
-      case Failure<int>():
-        //emit(FailedToAddedProductError(error));
-        _emitLoaded();
-    }
   }
 
-  // ---------------- Cart page ----------------
+  ProductDetailsState? get productDetailsState {
+    final currentState = state;
 
-  Future<void> loadCart() async {
-    emit(CartLoadingState());
-    await _refreshCart();
-  }
-
-  Future<void> _refreshCart() async {
-    final result = await getCartUseCase.execute();
-    switch (result) {
-      case Success<List<CartEntity>>(:final data):
-        _cart = List.of(data);
-        emit(CartLoadedState(List.unmodifiable(_cart)));
-      case Failure<List<CartEntity>>():
-        emit(CartFailed());
+    if (currentState is ProductDetailsState) {
+      return currentState;
     }
-  }
 
-  Future<void> changeQuantity(CartEntity item, int newQuantity) async {
-    if (newQuantity < 1) return;
-    final result = await updateCartItemUseCase.execute(
-      UpdateCartRequest(id: item.id, quantity: newQuantity),
-    );
-    switch (result) {
-      case Success<int>():
-        await _refreshCart();
-      case Failure<int>():
-       // emit(FailedToUpdateProductError(error));
-    }
-  }
-  /// Remove from cart by PRODUCT id (used by the details page).
-  Future<void> removeCartByProductId(int productId) async {
-    final result = await removeCartItemUseCase.execute(productId);
-    switch (result) {
-      case Success<int>():
-        await _loadCartData();  // snapshot: item gone, badge -1
-        _emitLoaded();          // button flips back to "Add to Cart"
-      case Failure<int>():
-      //  emit(FailedToUpdateProductError(error));
-    }
-  }
-
-  Future<void> removeCartItem(CartEntity item) async {
-    final result = await removeCartItemUseCase.execute(item.productId);
-    switch (result) {
-      case Success<int>():
-        await _refreshCart(); // badge drops by one product
-      case Failure<int>():
-     //   emit(FailedToUpdateProductError(error));
-    }
-  }
-
-  // ---------------- Navigation ----------------
-
-  void goToProductDetails(ProductEntity product) => emit(GoToProductDetails(product: product));
-
-  void gotToFavorites() => emit(GoToFavorites());
-
-  void gotToCarts() => emit(GoToCarts());
-
-  void goToHome() => emit(GoToHome());
-
-  // ---------------- helpers ----------------
-  ProductEntity? findLoadedProduct(int productId) {
-    for (final p in _allProducts) {
-      if (p.id == productId) return p;
-    }
     return null;
   }
 
-  void _emitLoaded() {
+  // ============================================================
+  // LOAD PRODUCTS
+  // ============================================================
+
+  Future<void> loadProducts() async {
     emit(
-      GetHomeLoaded(
-        products: _filteredProducts,
-        categories: _categories,
-        searchQuery: _searchQuery,
-        selectedCategory: _selectedCategory,
-        favoriteIds: Set.unmodifiable(_favoriteIds),
+      GetHomeLoadingState(),
+    );
+
+    try {
+      final result =
+      await getProductUseCase.execute();
+
+      switch (result) {
+        case Success<CategoryEntity>(
+            :final data,
+        ):
+          _categories = data;
+
+          if (_categories != null) {
+            final categories =
+                _categories!.data.data;
+
+            if (categories.isNotEmpty) {
+              _allProducts =
+                  categories.first.products;
+            }
+          }
+
+          await _loadFavData();
+
+          await _loadCartData();
+
+          _emitLoaded();
+
+          break;
+
+        case Failure<CategoryEntity>(
+            :final error,
+        ):
+          emit(
+            GetHomeFailed(
+              error?.message ??
+                  'Unable to load products',
+            ),
+          );
+
+          break;
+      }
+    } catch (e) {
+      emit(
+        GetHomeFailed(
+          e.toString(),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  void search(String query) {
+    _searchQuery = query;
+
+    _emitLoaded();
+  }
+
+  // ============================================================
+  // CATEGORY
+  // ============================================================
+
+  void selectCategory(
+      String category,
+      ) {
+    _selectedCategory = category;
+
+    _emitLoaded();
+  }
+
+  // ============================================================
+  // OPEN PRODUCT DETAILS
+  // ============================================================
+
+  void goToProductDetails(
+      CategoryDataDataProductsEntity product,
+      ) {
+    _selectedProduct = product;
+
+    _selectedImage = 0;
+
+    _selectedColor = 0;
+
+    _selectedSize = 0;
+
+    _quantity = 1;
+
+    _selectedAdditions = {};
+
+    emit(
+      GoToProductDetails(
+        product,
       ),
     );
   }
 
-  List<String> get _categories {
-    final categories = _allProducts.map((p) => p.category).toSet().toList()
-      ..sort();
-    return ['All', ...categories];
+  // ============================================================
+  // INITIALIZE PRODUCT DETAILS
+  // ============================================================
+
+  void initializeProductDetails(
+      CategoryDataDataProductsEntity product,
+      ) {
+    _selectedProduct = product;
+
+    _selectedImage = 0;
+
+    _selectedColor = 0;
+
+    _selectedSize = 0;
+
+    _quantity = 1;
+
+    _selectedAdditions = {};
+
+    emit(
+      ProductDetailsInitialState(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
   }
 
-  List<ProductEntity> get _filteredProducts {
-    return _allProducts.where((p) {
-      final matchesCategory =
-          _selectedCategory == 'All' || p.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          p.title.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+  // ============================================================
+  // SELECT IMAGE
+  // ============================================================
+
+  void selectProductImage(
+      int index,
+      ) {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    final totalImages =
+        product.images.length + 1;
+
+    if (index < 0 ||
+        index >= totalImages) {
+      return;
+    }
+
+    _selectedImage = index;
+
+    emit(
+      ProductDetailsImageChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SELECT COLOR
+  // ============================================================
+
+  void selectProductColor(
+      int index,
+      ) {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    if (index < 0 ||
+        index >= product.colors.length) {
+      return;
+    }
+
+    _selectedColor = index;
+
+    emit(
+      ProductDetailsColorChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SELECT SIZE
+  // ============================================================
+
+  void selectProductSize(
+      int index,
+      ) {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    if (index < 0 ||
+        index >= product.sizes.length) {
+      return;
+    }
+
+    _selectedSize = index;
+
+    emit(
+      ProductDetailsSizeChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // INCREASE QUANTITY
+  // ============================================================
+
+  void increaseQuantity() {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    _quantity++;
+
+    emit(
+      ProductDetailsQuantityChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DECREASE QUANTITY
+  // ============================================================
+
+  void decreaseQuantity() {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    if (_quantity <= 1) {
+      return;
+    }
+
+    _quantity--;
+
+    emit(
+      ProductDetailsQuantityChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // TOGGLE ADDITION
+  // ============================================================
+
+  void toggleProductAddition(
+      int index,
+      ) {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    if (index < 0 ||
+        index >= product.additionals.length) {
+      return;
+    }
+
+    if (_selectedAdditions.contains(index)) {
+      _selectedAdditions.remove(index);
+    } else {
+      _selectedAdditions.add(index);
+    }
+
+    emit(
+      ProductDetailsAdditionChanged(
+        product: product,
+        selectedImage: _selectedImage,
+        selectedColor: _selectedColor,
+        selectedSize: _selectedSize,
+        quantity: _quantity,
+        selectedAdditions:
+        Set.unmodifiable(
+          _selectedAdditions,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // RESET PRODUCT DETAILS
+  // ============================================================
+
+  void resetProductDetails() {
+    final product = _selectedProduct;
+
+    if (product == null) {
+      return;
+    }
+
+    _selectedImage = 0;
+
+    _selectedColor = 0;
+
+    _selectedSize = 0;
+
+    _quantity = 1;
+
+    _selectedAdditions = {};
+
+    emit(
+      ProductDetailsInitialState(
+        product: product,
+        selectedImage: 0,
+        selectedColor: 0,
+        selectedSize: 0,
+        quantity: 1,
+        selectedAdditions: const {},
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOAD FAVORITES DATA
+  // ============================================================
+
+  Future<void> _loadFavData() async {
+    try {
+      final result =
+      await getFavUseCase.execute();
+
+      if (result
+      case Success<List<FavoriteEntity>>(
+          :final data,
+      )) {
+        _favorites =
+        List<FavoriteEntity>.from(
+          data,
+        );
+      }
+    } catch (_) {
+      // Keep local favorites.
+    }
+  }
+
+  // ============================================================
+  // LOAD CART DATA
+  // ============================================================
+
+  Future<void> _loadCartData() async {
+    try {
+      final result =
+      await getCartUseCase.execute();
+
+      if (result
+      case Success<List<CartEntity>>(
+          :final data,
+      )) {
+        _cart =
+        List<CartEntity>.from(
+          data,
+        );
+      }
+    } catch (_) {
+      // Keep local cart.
+    }
+  }
+
+  // ============================================================
+  // SYNC CART
+  // ============================================================
+
+  Future<void> syncCart() async {
+    await _loadCartData();
+
+    _emitLoaded();
+  }
+
+  // ============================================================
+  // ADD TO CART
+  // ============================================================
+
+  Future<void> addToCart(
+      CategoryDataDataProductsEntity product, {
+        int? quantity,
+      }) async {
+    final selectedQuantity =
+        quantity ?? _quantity;
+
+    var alreadyInCart =
+    isProductInCart(
+      product.id,
+    );
+
+    try {
+      final checkResult =
+      await checkProductInCartUseCase
+          .execute(
+        product.id,
+      );
+
+      if (checkResult
+      case Success<bool>(
+          :final data,
+      )) {
+        alreadyInCart = data;
+      }
+    } catch (_) {
+      // Use local cart state.
+    }
+
+    if (alreadyInCart) {
+      emit(
+        ProductAlreadyInCart(
+          product.nameEn,
+        ),
+      );
+
+      return;
+    }
+
+    emit(
+      AddProductToCartLoading(),
+    );
+
+    final request =
+    AddProductToCartRequest(
+      productId: product.id,
+      quantity: selectedQuantity,
+      name: product.nameEn,
+      image: product.mainImage,
+      price: product.price,
+      value: 0,
+    );
+
+    try {
+      final result =
+      await addCartItemUseCase
+          .execute(
+        request,
+      );
+
+      switch (result) {
+        case Success<int>():
+          await _loadCartData();
+
+          emit(
+            AddedProductSuccessToCart(
+              List.unmodifiable(
+                _cart,
+              ),
+            ),
+          );
+
+          break;
+
+        case Failure<int>(
+            :final error,
+        ):
+          emit(
+            FailedToAddedProductError(
+              error?.message ??
+                  'Failed to add product to cart',
+            ),
+          );
+
+          break;
+      }
+    } catch (e) {
+      emit(
+        FailedToAddedProductError(
+          e.toString(),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // REMOVE CART PRODUCT
+  // ============================================================
+
+  Future<void> removeCartByProductId(
+      int productId,
+      ) async {
+    try {
+      final result =
+      await removeCartItemUseCase
+          .execute(
+        productId,
+      );
+
+      switch (result) {
+        case Success():
+          await _loadCartData();
+
+          _emitLoaded();
+
+          break;
+
+        case Failure():
+          _emitLoaded();
+
+          break;
+      }
+    } catch (_) {
+      _emitLoaded();
+    }
+  }
+
+  // ============================================================
+  // LOAD CART
+  // ============================================================
+
+  Future<void> loadCart() async {
+    emit(
+      CartLoadingState(),
+    );
+
+    await _refreshCart();
+  }
+
+  // ============================================================
+  // REFRESH CART
+  // ============================================================
+
+  Future<void> _refreshCart() async {
+    try {
+      final result =
+      await getCartUseCase.execute();
+
+      switch (result) {
+        case Success<List<CartEntity>>(
+            :final data,
+        ):
+          _cart =
+          List<CartEntity>.from(
+            data,
+          );
+
+          emit(
+            CartLoadedState(
+              List.unmodifiable(
+                _cart,
+              ),
+            ),
+          );
+
+          break;
+
+        case Failure<List<CartEntity>>():
+          emit(
+            CartFailed(),
+          );
+
+          break;
+      }
+    } catch (_) {
+      emit(
+        CartFailed(),
+      );
+    }
+  }
+
+  // ============================================================
+  // CHANGE CART QUANTITY
+  // ============================================================
+
+  Future<void> changeQuantity(
+      CartEntity item,
+      int newQuantity,
+      ) async {
+    if (newQuantity < 1) {
+      return;
+    }
+
+    emit(
+      UpdateProductToCartLoading(),
+    );
+
+    try {
+      final result =
+      await updateCartItemUseCase
+          .execute(
+        UpdateCartRequest(
+          id: item.id,
+          quantity: newQuantity,
+        ),
+      );
+
+      switch (result) {
+        case Success():
+          await _refreshCart();
+
+          break;
+
+        case Failure():
+          emit(
+            FailedToUpdateProductError(
+              'Failed to update cart',
+            ),
+          );
+
+          break;
+      }
+    } catch (e) {
+      emit(
+        FailedToUpdateProductError(
+          e.toString(),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // REMOVE CART ITEM
+  // ============================================================
+
+  Future<void> removeCartItem(
+      CartEntity item,
+      ) async {
+    try {
+      final result =
+      await removeCartItemUseCase
+          .execute(
+        item.productId,
+      );
+
+      switch (result) {
+        case Success():
+          await _refreshCart();
+
+          break;
+
+        case Failure():
+          break;
+      }
+    } catch (_) {}
+  }
+
+  // ============================================================
+  // LOAD FAVORITES
+  // ============================================================
+
+  Future<void> loadFavorites() async {
+    emit(
+      FavoritesLoadingState(),
+    );
+
+    await _refreshFavorites();
+  }
+
+  // ============================================================
+  // REFRESH FAVORITES
+  // ============================================================
+
+  Future<void> _refreshFavorites() async {
+    try {
+      final result =
+      await getFavUseCase.execute();
+
+      switch (result) {
+        case Success<List<FavoriteEntity>>(
+            :final data,
+        ):
+          _favorites =
+          List<FavoriteEntity>.from(
+            data,
+          );
+
+          emit(
+            FavoritesLoadedState(
+              List.unmodifiable(
+                _favorites,
+              ),
+            ),
+          );
+
+          break;
+
+        case Failure<List<FavoriteEntity>>():
+          emit(
+            FavoritesFailed(),
+          );
+
+          break;
+      }
+    } catch (_) {
+      emit(
+        FavoritesFailed(),
+      );
+    }
+  }
+
+  // ============================================================
+  // REMOVE FAVORITE
+  // ============================================================
+
+  Future<void> removeFavorite(
+      int id,
+      ) async {
+    try {
+      final result =
+      await removeProductFromFavUseCase
+          .execute(
+        id,
+      );
+
+      switch (result) {
+        case Success():
+          await _refreshFavorites();
+
+          _emitLoaded();
+
+          break;
+
+        case Failure():
+          emit(
+            FavoritesLoadedState(
+              List.unmodifiable(
+                _favorites,
+              ),
+            ),
+          );
+
+          break;
+      }
+    } catch (_) {
+      emit(
+        FavoritesLoadedState(
+          List.unmodifiable(
+            _favorites,
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
+
+  void gotToFavorites() {
+    emit(
+      GoToFavorites(),
+    );
+  }
+
+  void gotToCarts() {
+    emit(
+      GoToCarts(),
+    );
+  }
+
+  void goToHome() {
+    emit(
+      GoToHome(),
+    );
+  }
+
+  // ============================================================
+  // EMIT HOME LOADED
+  // ============================================================
+
+  void _emitLoaded() {
+    if (_categories == null) {
+      return;
+    }
+
+    emit(
+      GetHomeLoaded(
+        categories: _categories!,
+        searchQuery: _searchQuery,
+        selectedCategory:
+        _selectedCategory,
+        favoriteIds:
+        Set.unmodifiable(
+          favoriteIds,
+        ),
+        products:
+        List.unmodifiable(
+          _allProducts,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  Future<void> logout() async {
+    await _removePrefUseCase.call();
+
+    emit(
+      ProfileLogout(),
+    );
   }
 }

@@ -26,11 +26,16 @@ class _LoginScreenState extends State<LoginScreen> with Utility {
   final passwordController = TextEditingController();
 
   late LoginCubit cubit;
-
+ @override @override
+  void initState() {
+   cubit = LoginCubit.get(context);
+   cubit.checkIfUserLoggedIn();
+    super.initState();
+  }
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    cubit = LoginCubit.get(context);
+
   }
 
   Future<void> login() async {
@@ -38,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> with Utility {
       loginRequest: LoginRequest(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
-        country: "amman",
+        country: "Joftane",
         city: "amman",
       ),
     );
@@ -48,7 +53,8 @@ class _LoginScreenState extends State<LoginScreen> with Utility {
   Widget build(BuildContext context) {
     return BlocListener<LoginCubit, LoginState>(
       listener: (context, state) {
-        if (state is LoginSuccessful) {
+
+        if (state is LoginSuccessful || state is   UserAlreadyLoggedIn) {
           navigateTo(
             context,
             BlocProvider(create: (_) => HomeCubit(), child: const HomePage()),
@@ -298,9 +304,7 @@ class _LoginScreenState extends State<LoginScreen> with Utility {
   @override
   void dispose() {
     emailController.dispose();
-
     passwordController.dispose();
-
     super.dispose();
   }
 }

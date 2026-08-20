@@ -20,7 +20,8 @@ dependencies:
   # DI
   get_it: ^9.2.1
   injectable: ^2.7.1
-
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
   # Networking
   dio: ^5.10.0
   retrofit: ^4.7.3
@@ -31,6 +32,8 @@ dependencies:
   logger: ^2.7.0
   custom_cached_image: ^1.7.0
   sqlite3: ^3.3.4
+  shared_preferences: ^2.5.5
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
@@ -46,3 +49,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - lib/core/get_it/
