@@ -19,10 +19,12 @@ import 'package:job_task/data/repository/auth_repo_imp.dart' as _i1039;
 import 'package:job_task/data/repository/home_page_drawer_repo_imp.dart'
     as _i732;
 import 'package:job_task/data/repository/home_page_repo_imp.dart' as _i669;
+import 'package:job_task/data/repository/order_repoistory_imp.dart' as _i530;
 import 'package:job_task/data/repository/shared_pref_imp.dart' as _i513;
 import 'package:job_task/domain/repository/auth_repo.dart' as _i352;
 import 'package:job_task/domain/repository/home_page_drawer_repo.dart' as _i470;
 import 'package:job_task/domain/repository/home_page_repo.dart' as _i10;
+import 'package:job_task/domain/repository/order_repository.dart' as _i368;
 import 'package:job_task/domain/repository/shared_pref_repo.dart' as _i788;
 import 'package:job_task/domain/use_cases/about_us/about_us_use_case.dart'
     as _i860;
@@ -50,6 +52,8 @@ import 'package:job_task/domain/use_cases/faviorate/get_fav_use_case.dart'
 import 'package:job_task/domain/use_cases/faviorate/remove_product_from_fav_use_case.dart'
     as _i819;
 import 'package:job_task/domain/use_cases/get_product_use_case.dart' as _i663;
+import 'package:job_task/domain/use_cases/order_use_case/order_use_case.dart'
+    as _i539;
 import 'package:job_task/domain/use_cases/our_branches_use_case.dart' as _i491;
 import 'package:job_task/domain/use_cases/shared_pref/get_shared_pref.dart'
     as _i535;
@@ -74,6 +78,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i361.Dio>(() => networkModule.dio);
     gh.singleton<_i812.ApiService>(() => _i812.ApiService(gh<_i361.Dio>()));
+    gh.factory<_i368.OrderRepository>(
+      () => _i530.OrderRepositoryImp(gh<_i812.ApiService>()),
+    );
     gh.factory<_i470.HomePageDrawerRepo>(
       () => _i732.HomePageDrawerRepoImp(gh<_i812.ApiService>()),
     );
@@ -106,6 +113,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i788.SharedPrefsRepo>(
       () => _i513.SharedPrefsRepoImp(gh<_i460.SharedPreferences>()),
+    );
+    gh.singleton<_i539.CreateOrderUseCase>(
+      () => _i539.CreateOrderUseCase(gh<_i368.OrderRepository>()),
     );
     gh.singleton<_i860.AboutUsUseCase>(
       () => _i860.AboutUsUseCase(gh<_i470.HomePageDrawerRepo>()),

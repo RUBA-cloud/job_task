@@ -65,7 +65,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   List<CategoryDataDataProductsEntity> _allProducts = [];
 
-  CartEntity? _cart;
+  CartEntity? cart;
 
   FaviorateEntity? _favorites;
 
@@ -98,14 +98,14 @@ class HomeCubit extends Cubit<HomeState> {
   // ============================================================
 
   bool isProductInCart(int productId) {
-    return _cart?.data.any(
+    return cart?.data.any(
           (item) => item.productId == productId,
     ) ??
         false;
   }
 
   int get cartCount {
-    return _cart?.data.length ?? 0;
+    return cart?.data.length ?? 0;
   }
 
   int get favoriteCount {
@@ -113,7 +113,7 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   double get cartTotal {
-    return _cart?.data.fold<double>(
+    return cart?.data.fold<double>(
       0.0,
           (sum, item) {
         final price =
@@ -127,7 +127,7 @@ class HomeCubit extends Cubit<HomeState> {
 
   List<CartDataEntity> get cartItems {
     return List.unmodifiable(
-      _cart?.data ?? [],
+      cart?.data ?? [],
     );
   }
 
@@ -521,7 +521,7 @@ class HomeCubit extends Cubit<HomeState> {
 
       switch (result) {
         case Success<CartEntity>(:final data):
-          _cart = data;
+          cart = data;
           break;
 
         case Failure<CartEntity>():
@@ -585,7 +585,7 @@ class HomeCubit extends Cubit<HomeState> {
 
           emit(
             AddedProductSuccessToCart(
-             _cart!
+             cart!
             ),
           );
 
@@ -672,7 +672,7 @@ class HomeCubit extends Cubit<HomeState> {
 
       switch (result) {
         case Success<CartEntity>(:final data):
-          _cart = data;
+          cart = data;
 
           emit(
             CartLoadedState(

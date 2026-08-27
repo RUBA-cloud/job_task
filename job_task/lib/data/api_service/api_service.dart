@@ -8,6 +8,7 @@ import 'package:job_task/data/model/request/auth_request/update_profile_request.
 import 'package:job_task/data/model/request/cart/remove_product_in_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
+import 'package:job_task/data/model/request/order/create_order_request.dart';
 import 'package:job_task/data/model/response/about_us_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/check_email_verified_entity.dart';
 import 'package:job_task/data/model/response/auth_entity/forgot_password_entity.dart';
@@ -19,6 +20,7 @@ import 'package:job_task/data/model/response/branch_entity.dart';
 import 'package:job_task/data/model/response/cart/add_product_to_cart_entity.dart';
 import 'package:job_task/data/model/response/cart/cart_entity.dart';
 import 'package:job_task/data/model/response/category_entity.dart';
+import 'package:job_task/data/model/response/create_order_entity.dart';
 import 'package:job_task/data/model/response/faviorate_entity.dart';
 import 'package:job_task/data/model/response/remove_fav_entity.dart';
 import 'package:retrofit/retrofit.dart';
@@ -94,5 +96,6 @@ abstract class ApiService {
   Future<CartEntity> updateProductInCart(@Body()UpdateCartRequest request);
   @POST('remove-from-cart')
   Future<CartEntity> deleteProductInCart(@Body()RemoveProductFromCartRequest request);
-
+@POST('make_order')
+Future<CreateOrderEntity>makeOrder(@Body()CreateOrderRequest request);
 }

@@ -8,10 +8,12 @@ import 'package:job_task/core/utility/utility.dart';
 import 'package:job_task/data/model/response/cart/cart_entity.dart';
 
 import 'package:job_task/presentation/home_page/product_details.dart';
+import 'package:job_task/presentation/order/address_page.dart';
 import 'package:job_task/presentation/widget/app_image.dart';
 
 import 'package:job_task/services/home_page/home_cubit.dart';
 import 'package:job_task/services/home_page/home_state.dart';
+import 'package:job_task/services/order/order_cubit.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({
@@ -101,8 +103,7 @@ class _CartPageState extends State<CartPage>
             if (state is CartFailed) {
               return getErrorView(
                 message:
-                state.error ??
-                    'Could not load your cart',
+                state.error,
 
                 onRetry:
                 _homeCubit.loadCart,
@@ -125,7 +126,7 @@ class _CartPageState extends State<CartPage>
               }
 
               return _buildBody(
-                state.cart!.data,
+                state.cart.data,
               );
             }
 
@@ -640,7 +641,11 @@ class _CartPageState extends State<CartPage>
             child:
             ElevatedButton(
               onPressed: () {
-                // TODO: Checkout
+                navigateTo(context, BlocProvider(
+                  create: (_) => OrderCubit(),
+                  child: AddressPage(cartEntity: _homeCubit.cart!,)));
+                   // cartEntity: _homeCubit.cart!,
+
               },
 
               style:
