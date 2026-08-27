@@ -1,87 +1,139 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:job_task/core/di/api_result.dart';
-import 'package:job_task/core/di/sql_lite_connection.dart';
 import 'package:job_task/data/api_service/api_service.dart';
 import 'package:job_task/data/model/request/cart/add_product_to_cart.dart';
+import 'package:job_task/data/model/request/cart/remove_product_in_cart.dart';
 import 'package:job_task/data/model/request/cart/update_cart_request.dart';
 import 'package:job_task/data/model/request/faviorate/add_to_fav_request.dart';
-import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/cart/add_product_to_cart_entity.dart';
+import 'package:job_task/data/model/response/cart/cart_entity.dart';
 import 'package:job_task/data/model/response/category_entity.dart';
-import 'package:job_task/data/model/response/favorite_entity.dart';
+import 'package:job_task/data/model/response/faviorate_entity.dart';
+import 'package:job_task/data/model/response/remove_fav_entity.dart';
 import 'package:job_task/domain/repository/home_page_repo.dart';
 
 @Injectable(as: HomePageRepo)
-class HomePageRepoImp implements HomePageRepo {
+class HomePageRepoImp implements HomePageRepo
+{
   final ApiService _apiService;
-  final SqlLiteConnection _db; // local store for favorites + cart
 
-  const HomePageRepoImp(this._apiService, this._db);
+  const HomePageRepoImp(this._apiService);
 
   @override
-  Future<ApiResult<CategoryEntity>> getProducts() async {
+  Future<ApiResult<CategoryEntity>> getProducts() async
+  {
     try {
       final res = await _apiService.getProducts();
       return Success(data: res);
-    } on DioException catch (e) {
+    }
+    on DioException catch (e) {
       return Failure(
         error: e,
         statusCode: e.response?.statusCode,
       );
-
     }
   }
 
   @override
-  Future<ApiResult<int>> addProductToFav(AddToFavRequest favRequest) {
-    return _db.addFavoriteRequest(favRequest);
+  Future<ApiResult<AddProductToCartEntity>> addProductToCart(AddProductToCartRequest favRequest)async
+{
+
+  try
+  {
+    final res = await _apiService.addProductToCart(favRequest);
+    return Success(data: res);
+  }
+  on DioException catch (e)
+  {
+    return Failure(
+      error: e,
+      statusCode: e.response?.statusCode,
+    );
+  }
   }
 
   @override
-  Future<ApiResult<int>> deleteProductFromFav(int favId) {
-    return _db.removeFavorite(favId);
+  Future<ApiResult<FaviorateEntity>> addProductToFav(
+      AddToFavRequest favRequest) async
+{
+    try
+{
+      final res = await _apiService.addToFav(favRequest);
+      return Success(data: res);
+    }
+on DioException catch (e)
+{
+      return Failure(
+        error: e,
+        statusCode: e.response?.statusCode,
+      );
+    }
   }
 
   @override
-  Future<ApiResult<int>> removeProductFromCard(int favId) {
-    return _db.removeFromCart(favId);
+  Future<ApiResult<RemoveFavEntity>> deleteProductFromFav(int favId) async
+  {
+    try {
+      final res = await _apiService.removeFromFav(favId);
+      return Success(data: res);
+    }
+    on DioException catch (e) {
+      return Failure(
+        error: e,
+        statusCode: e.response?.statusCode,
+      );
+    }
   }
 
   @override
-  Future<ApiResult<int> >addProductToCart(AddProductToCartRequest addRequest) {
-    return _db.addToCartRequest(addRequest);
+  Future<ApiResult<CartEntity>> getCartList()async
+{
+  try {
+    final res = await _apiService.loadCart();
+    return Success(data: res);
+  }
+  on DioException catch (e) {
+    return Failure(
+      error: e,
+      statusCode: e.response?.statusCode,
+    );
+  }
+  }
+
+
+  @override
+  Future<ApiResult<FaviorateEntity>> getFavorites() async
+  {
+    try {
+      final res = await _apiService.getToFav();
+      return Success(data: res);
+    } on DioException catch (e) {
+      return
+        Failure(error: e, statusCode: e.response?.statusCode,);
+    }
   }
 
   @override
-  Future<ApiResult<int>> updateProductFromCart(UpdateCartRequest cartRequest) {
-    return _db.updateCartItem(cartRequest); // was updateCartItem (doesn't exist)
+  Future<ApiResult<CartEntity>> removeProductFromCard(RemoveProductFromCartRequest removeCartRequest)async {
+    try {
+      final res = await _apiService.deleteProductInCart(removeCartRequest);
+      return Success(data: res);
+    } on DioException catch (e) {
+      return
+        Failure(error: e, statusCode: e.response?.statusCode,);
+    }
   }
 
   @override
-  Future<ApiResult<List<CartEntity>>> getCartList() async {
-    return await _db.getCartItems(); // List<Map<String, Object?>>
-
+  Future<ApiResult<CartEntity>> updateProductQuantity(UpdateCartRequest updateRequest)async {
+    try {
+      final res = await _apiService.updateProductInCart(updateRequest);
+      return Success(data: res);
+    } on DioException catch (e) {
+      return
+        Failure(error: e, statusCode: e.response?.statusCode,);
+    }
+  }
   }
 
-  @override
-  Future<ApiResult<bool>> checkItemAlreadyInCard(int productId) async{
-    return await _db.isInCart(productId); // List<Map<S
-  }
-
-  @override
-  Future<ApiResult<bool>> checkItemAlreadyInFaviorate(int productId) async{
-    // TODO: implement checkItemAlreadyInFaviorate
-    return await _db.isInFaviorate(productId);
-  }
-
-  @override
-  Future<ApiResult<List<FavoriteEntity>>> getFaviorateList()async {
-    return await _db.getFavorites();
-  }
-
-  @override
-  Future<ApiResult<int>> removeProductFromFav(int favId)async {
-    // TODO: implement removeProductFromFav
-    return await _db.removeFavorite(favId);
-  }
-}

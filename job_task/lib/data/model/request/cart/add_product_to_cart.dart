@@ -1,37 +1,24 @@
 class AddProductToCartRequest {
   final int productId;
   final int quantity;
-  final String name;
-  final String image;
-  final String price;
-  final int value;
+  final int? sizeId;
+  final String? color;
+  final List<int>? additionalsId;
 
   const AddProductToCartRequest({
     required this.productId,
     this.quantity = 1,
-    required this.name,
-    required this.image,
-    required this.price,
-    required this.value,
+    this.sizeId,
+    this.color,
+    this.additionalsId,
   });
 
-  /// Row map for inserting into the Carts table.
-  Map<String, Object?> toMap() => {
+  Map<String, dynamic> toJson() => {
     'product_id': productId,
     'quantity': quantity,
-    'name': name,
-    'image': image,
-    'price': price,
-    'value': value,
+    if (sizeId != null) 'size_id': sizeId,
+    if (color != null && color!.isNotEmpty) 'color': color,
+    if (additionalsId != null && additionalsId!.isNotEmpty)
+      'additionals_id': additionalsId,
   };
-
-  factory AddProductToCartRequest.fromMap(Map<String, Object?> map) =>
-      AddProductToCartRequest(
-        productId: map['product_id'] as int,
-        quantity: map['quantity'] as int,
-        name: map['name'] as String,
-        image: map['image'] as String,
-        price: map['price'] as String,
-        value: map['value'] as int,
-      );
 }

@@ -1,11 +1,27 @@
 class AddToFavRequest {
   final int productId;
-  const AddToFavRequest({required this.productId,});
 
-  /// Row map for inserting into the Favorites table.
-  Map<String, Object?> toMap() => {'product_id': productId};
+  const AddToFavRequest({
+    required this.productId,
+  });
 
-  factory AddToFavRequest.fromMap(Map<String, Object?> map) => AddToFavRequest(
-    productId: map['product_id'] as int,
-  );
+  /// JSON body for API request
+  Map<String, dynamic> toJson() {
+    return {
+      'product_id': productId,
+    };
+  }
+
+  /// Row map for SQLite
+  Map<String, Object?> toMap() {
+    return {
+      'product_id': productId,
+    };
+  }
+
+  factory AddToFavRequest.fromMap(Map<String, Object?> map) {
+    return AddToFavRequest(
+      productId: map['product_id'] as int,
+    );
+  }
 }

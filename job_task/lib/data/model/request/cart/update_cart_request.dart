@@ -9,7 +9,8 @@ class UpdateCartRequest {
 
   /// Column map for updating a Carts row. `id` is NOT included here —
   /// it's the WHERE condition, not a value to change.
-  Map<String, Object?> toMap() => {
+  Map<String, Object?> toJson() => {
+    "id":id,
     'quantity': quantity,
     'updated_date': DateTime.now().toIso8601String(),
   };

@@ -147,6 +147,7 @@ mixin Utility {
       backgroundColor: Colors.transparent,
       titleSpacing: showBackButton ? 0 : 20,
       automaticallyImplyLeading: false,
+
       leading: showBackButton
           ? IconButton(
         icon: const Icon(
@@ -154,9 +155,14 @@ mixin Utility {
           size: 20,
           color: AppColors.ink,
         ),
-        onPressed: onBack ?? () => Navigator.pop(context),
+
+        onPressed: onBack ??
+                () {
+              Navigator.of(context).pop();
+            },
       )
           : null,
+
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

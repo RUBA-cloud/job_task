@@ -1,6 +1,8 @@
-import 'package:job_task/data/model/response/cart_entity.dart';
+import 'package:job_task/data/model/response/cart/cart_entity.dart';
+
 import 'package:job_task/data/model/response/category_entity.dart';
-import 'package:job_task/data/model/response/favorite_entity.dart';
+import 'package:job_task/data/model/response/faviorate_entity.dart';
+
 
 abstract class HomeState {}
 
@@ -161,14 +163,17 @@ class ProductDetailsAdditionChanged extends ProductDetailsState {
 class CartInitialState implements HomeState {}
 
 class CartLoadedState implements HomeState {
- final List<CartEntity> cart;
+ final CartEntity cart;
 
  CartLoadedState(this.cart);
 }
 
 class CartLoadingState implements HomeState {}
 
-class CartFailed implements HomeState {}
+class CartFailed implements HomeState {
+ final String error;
+ CartFailed(this.error);
+}
 
 // ============================================================
 // ADD CART
@@ -177,7 +182,7 @@ class CartFailed implements HomeState {}
 class AddProductToCartLoading implements HomeState {}
 
 class AddedProductSuccessToCart implements HomeState {
- final List<CartEntity> cart;
+ final CartEntity cart;
 
  AddedProductSuccessToCart(this.cart);
 }
@@ -219,7 +224,7 @@ class FailedToUpdateProductError implements HomeState {
 class FavoritesLoadingState implements HomeState {}
 
 class FavoritesLoadedState implements HomeState {
- final List<FavoriteEntity> favorites;
+ final FaviorateEntity favorites;
 
  FavoritesLoadedState(this.favorites);
 }
